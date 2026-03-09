@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { QuestionService } from '../question/question.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { Room } from './entities/room.entity';
 
@@ -9,6 +11,8 @@ export class RoomService {
   constructor(
     @InjectRepository(Room)
     private readonly roomRepository: Repository<Room>,
+    private readonly questionService: QuestionService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAll() {
@@ -50,6 +54,14 @@ export class RoomService {
     });
 
     const savedRoom = await this.roomRepository.save(room);
+
+    const questions = await this.questionService.getRandomQuestions(10);
+
+    this.eventEmitter.emit('room.created', {
+      roomCode: savedRoom.roomCode,
+      name: savedRoom.name,
+      questions,
+    });
 
     return savedRoom;
   }
