@@ -1,6 +1,8 @@
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { RoomModule } from './modules/room/room.module';
 
 @Module({
   imports: [
@@ -22,6 +24,17 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        url: configService.getOrThrow<string>('DB_URL'),
+        autoLoadEntities: true,
+        synchronize: true,
+      }),
+    }),
+    RoomModule,
   ],
   controllers: [],
   providers: [],
