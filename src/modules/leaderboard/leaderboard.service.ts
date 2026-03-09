@@ -7,7 +7,7 @@ export class LeaderboardService {
   constructor(@InjectRedis() private readonly redis: Redis) {}
 
   async addScore(username: string, score: number) {
-    await this.redis.zadd('global_leaderboard', score, username);
+    await this.redis.zincrby('global_leaderboard', score, username);
 
     return { message: `${username} için skor eklendi/güncellendi: ${score}` };
   }
@@ -41,7 +41,7 @@ export class LeaderboardService {
   async getPlayerRank(username: string) {
     const rank = await this.redis.zrevrank('global_leaderboard', username);
 
-    if (!rank) {
+    if (rank === null) {
       throw new NotFoundException(`${username} bulunamadı`);
     }
 
