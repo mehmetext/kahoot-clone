@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-enum RoomStatus {
+export enum RoomStatus {
   WAITING = 'WAITING',
   IN_PROGRESS = 'IN_PROGRESS',
   FINISHED = 'FINISHED',
@@ -19,6 +19,9 @@ enum RoomStatus {
 export class Room {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'text', nullable: true })
+  name?: string;
 
   @Column({ type: 'text', unique: true })
   roomCode: string;
