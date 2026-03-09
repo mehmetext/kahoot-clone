@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBody } from '@nestjs/swagger';
 import { LeaderboardService } from './leaderboard.service';
 
@@ -23,5 +23,10 @@ export class LeaderboardController {
   })
   async addScore(@Body() body: { username: string; score: number }) {
     return this.leaderboardService.addScore(body.username, body.score);
+  }
+
+  @Get('player-rank/:username')
+  async getPlayerRank(@Param('username') username: string) {
+    return this.leaderboardService.getPlayerRank(username);
   }
 }

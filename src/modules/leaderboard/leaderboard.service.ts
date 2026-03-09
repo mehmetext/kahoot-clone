@@ -1,5 +1,5 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -36,5 +36,21 @@ export class LeaderboardService {
     }
 
     return leaderboard;
+  }
+
+  async getPlayerRank(username: string) {
+    const rank = await this.redis.zrevrank('global_leaderboard', username);
+
+    if (!rank) {
+      throw new NotFoundException(`${username} bulunamadı`);
+    }
+
+    const score = await this.redis.zscore('global_leaderboard', username);
+
+    return {
+      username,
+      rank: rank + 1,
+      score: score ? parseInt(score) : null,
+    };
   }
 }
