@@ -5,4 +5,36 @@ import Redis from 'ioredis';
 @Injectable()
 export class LeaderboardService {
   constructor(@InjectRedis() private readonly redis: Redis) {}
+
+  async addScore(username: string, score: number) {
+    await this.redis.zadd('global_leaderboard', score, username);
+
+    return { message: `${username} için skor eklendi/güncellendi: ${score}` };
+  }
+
+  async getTopPlayers() {
+    const rawData = await this.redis.zrange(
+      'global_leaderboard',
+      0,
+      -1,
+      'REV',
+      'WITHSCORES',
+    );
+
+    console.log(rawData);
+
+    const leaderboard: { username: string; score: number }[] = [];
+
+    for (let i = 0; i < rawData.length; i += 2) {
+      const username = rawData[i];
+      const score = rawData[i + 1];
+
+      leaderboard.push({
+        username,
+        score: parseInt(score),
+      });
+    }
+
+    return leaderboard;
+  }
 }

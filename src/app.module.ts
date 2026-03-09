@@ -5,6 +5,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
       }),
     }),
     EventEmitterModule.forRoot(),
+    LeaderboardModule,
   ],
   controllers: [],
   providers: [
