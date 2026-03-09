@@ -25,7 +25,9 @@ export class GameService {
     const playersKey = `room:${roomCode}:players`;
     const leaderboardKey = `room:${roomCode}:leaderboard`;
 
-    await this.redis.hset(playersKey, socketId, playerName);
+    await this.redis.hset(playersKey, {
+      [socketId]: playerName,
+    });
 
     await this.redis.zadd(leaderboardKey, 0, playerName);
   }

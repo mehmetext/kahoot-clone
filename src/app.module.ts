@@ -5,6 +5,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { GameModule } from './modules/game/game.module';
 import { QuestionModule } from './modules/question/question.module';
 import { RoomModule } from './modules/room/room.module';
 
@@ -41,6 +42,7 @@ import { RoomModule } from './modules/room/room.module';
     RoomModule,
     QuestionModule,
     EventEmitterModule.forRoot(),
+    GameModule,
   ],
   controllers: [],
   providers: [
