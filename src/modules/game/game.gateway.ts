@@ -105,5 +105,12 @@ export class GameGateway {
     await this.redis.hset(`game:${payload.pin}:players`, {
       [payload.playerId]: payload.nickname,
     });
+
+    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+
+    this.server.to(`game:${payload.pin}`).emit('player:joined', {
+      nickname: payload.nickname,
+      playerCount,
+    });
   }
 }
