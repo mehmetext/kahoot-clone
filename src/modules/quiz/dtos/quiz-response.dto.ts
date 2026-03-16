@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { QuestionResponseDto } from './question-response.dto';
 
 export class QuizResponseDto {
   @ApiProperty({
@@ -38,14 +39,10 @@ export class QuizResponseDto {
   })
   deletedAt: Date | null;
 
-  /* @ApiProperty({
+  @ApiProperty({
     description: 'The questions of the quiz',
-    example: [
-      {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        title: 'Question 1',
-      },
-    ],
+    type: [QuestionResponseDto],
+    nullable: true,
   })
-  questions: QuestionResponseDto[]; */
+  questions?: QuestionResponseDto[];
 }

@@ -23,7 +23,7 @@ model Question {
   title              String
   options            Json[]
   order              Int
-  timeLimitInSeconds Int
+  timeLimitInSeconds Int?
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

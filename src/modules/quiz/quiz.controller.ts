@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
@@ -20,5 +20,15 @@ export class QuizController {
     @Req() req: Request & { user: UserResponseDto },
   ): Promise<QuizResponseDto> {
     return this.quizService.create(createQuizDto, req.user.id);
+  }
+
+  @Get()
+  @ApiOkResponseGeneric(QuizResponseDto)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  findAll(
+    @Req() req: Request & { user: UserResponseDto },
+  ): Promise<QuizResponseDto[]> {
+    return this.quizService.findAll(req.user.id);
   }
 }
