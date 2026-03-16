@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { UserModule } from './modules/user/user.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { PrismaModule } from './shared/modules/prisma/prisma.module';
 
@@ -29,7 +29,7 @@ import { PrismaModule } from './shared/modules/prisma/prisma.module';
       inject: [ConfigService],
     }),
     EventEmitterModule.forRoot(),
-    UserModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [
