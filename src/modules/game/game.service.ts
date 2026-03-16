@@ -33,7 +33,8 @@ export class GameService {
 
     const redisPipeline = this.redis.pipeline();
 
-    redisPipeline.sadd(`active-games`, pin);
+    redisPipeline.sadd(`games`, pin);
+    redisPipeline.sadd(`user:${userId}:games`, pin);
     redisPipeline.hset(`game:${pin}`, {
       quizId: createGameDto.quizId,
       hostId: userId,
@@ -52,6 +53,37 @@ export class GameService {
       currentQuestionIndex: 0,
       startedAt: null,
     };
+  }
+
+  async getGamesByUserId(userId: string) {
+    const gamePins = await this.redis.smembers(`user:${userId}:games`);
+
+    const redisPipeline = this.redis.pipeline();
+
+    for (const gamePin of gamePins) {
+      redisPipeline.hgetall(`game:${gamePin}`);
+    }
+
+    const results = await redisPipeline.exec();
+
+    if (!results) {
+      return [];
+    }
+
+    return results.map((result, index) => {
+      const game = result[1] as Record<string, string>;
+
+      const gameResponseDto: GameResponseDto = {
+        pin: gamePins[index],
+        quizId: game.quizId,
+        hostId: game.hostId,
+        status: game.status as GameStatus,
+        currentQuestionIndex: Number(game.currentQuestionIndex),
+        startedAt: game.startedAt ? new Date(game.startedAt) : null,
+      };
+
+      return gameResponseDto;
+    });
   }
 
   async getGame(pin: string): Promise<GameResponseDto> {

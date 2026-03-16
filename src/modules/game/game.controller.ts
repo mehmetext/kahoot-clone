@@ -24,6 +24,17 @@ export class GameController {
     return game;
   }
 
+  @Get()
+  @ApiOkResponseGeneric(GameResponseDto, { isArray: true })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  async getGamesByUserId(
+    @CurrentUser() user: UserResponseDto,
+  ): Promise<GameResponseDto[]> {
+    const games = await this.gameService.getGamesByUserId(user.id);
+    return games;
+  }
+
   @Get(':pin')
   @ApiOkResponseGeneric(GameResponseDto)
   @ApiBearerAuth()
