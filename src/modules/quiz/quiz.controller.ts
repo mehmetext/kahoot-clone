@@ -14,12 +14,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiNoContentResponse } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
+import { CreateQuestionDto } from './dtos/create-question.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
+import { QuestionResponseDto } from './dtos/question-response.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
+import { UpdateQuestionDto } from './dtos/update-question.dto';
 import { UpdateQuizDto } from './dtos/update-quiz.dto';
 import { QuizService } from './quiz.service';
-import { QuestionResponseDto } from './dtos/question-response.dto';
-import { CreateQuestionDto } from './dtos/create-question.dto';
 
 @Controller('quizzes')
 export class QuizController {
@@ -88,5 +89,17 @@ export class QuizController {
     @Body() createQuestionDto: CreateQuestionDto,
   ): Promise<QuestionResponseDto> {
     return this.quizService.createQuestion(id, createQuestionDto);
+  }
+
+  @Put(':id/questions/:questionId')
+  @ApiOkResponseGeneric(QuestionResponseDto)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async updateQuestion(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+    @Body() updateQuestionDto: UpdateQuestionDto,
+  ): Promise<QuestionResponseDto> {
+    return this.quizService.updateQuestion(questionId, updateQuestionDto);
   }
 }
