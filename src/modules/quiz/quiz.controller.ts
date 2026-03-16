@@ -7,18 +7,18 @@ import {
   Param,
   Post,
   Put,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiNoContentResponse } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
+import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { CreateQuestionDto } from './dtos/create-question.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
-import { UpdateQuestionOptionsDto } from './dtos/update-question-option.dto';
 import { QuestionResponseDto } from './dtos/question-response.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
+import { UpdateQuestionOptionsDto } from './dtos/update-question-option.dto';
 import { UpdateQuestionDto } from './dtos/update-question.dto';
 import { UpdateQuizDto } from './dtos/update-quiz.dto';
 import { QuizService } from './quiz.service';
@@ -33,9 +33,9 @@ export class QuizController {
   @ApiBearerAuth()
   create(
     @Body() createQuizDto: CreateQuizDto,
-    @Req() req: Request & { user: UserResponseDto },
+    @CurrentUser() user: UserResponseDto,
   ): Promise<QuizResponseDto> {
-    return this.quizService.createQuiz(createQuizDto, req.user.id);
+    return this.quizService.createQuiz(createQuizDto, user.id);
   }
 
   @Get()
@@ -43,9 +43,9 @@ export class QuizController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   async findAll(
-    @Req() req: Request & { user: UserResponseDto },
+    @CurrentUser() user: UserResponseDto,
   ): Promise<QuizResponseDto[]> {
-    const quizzes = await this.quizService.findAllQuizzes(req.user.id);
+    const quizzes = await this.quizService.findAllQuizzes(user.id);
     return quizzes;
   }
 

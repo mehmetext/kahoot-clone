@@ -1,14 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
+import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { CreateUserDto } from '../user/dtos/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginResponseDto } from './dtos/login-response.dto';
@@ -24,10 +18,8 @@ export class AuthController {
   @UseGuards(AuthGuard('local'))
   @ApiBody({ type: LoginDto })
   @ApiOkResponseGeneric(LoginResponseDto)
-  login(
-    @Request() req: Request & { user: UserResponseDto },
-  ): Promise<LoginResponseDto> {
-    return this.authService.login(req.user);
+  login(@CurrentUser() user: UserResponseDto): Promise<LoginResponseDto> {
+    return this.authService.login(user);
   }
 
   @Post('register')
@@ -40,8 +32,8 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @ApiOkResponseGeneric(UserResponseDto)
-  me(@Request() req: Request & { user: UserResponseDto }): UserResponseDto {
-    return req.user;
+  me(@CurrentUser() user: UserResponseDto): UserResponseDto {
+    return user;
   }
 
   @Post('refresh-token')
