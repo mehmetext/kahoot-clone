@@ -28,14 +28,7 @@ export class QuizService {
       where: { userId },
       include: {
         questions: {
-          orderBy: [
-            {
-              order: 'asc',
-            },
-            {
-              createdAt: 'desc',
-            },
-          ],
+          orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
         },
       },
     });
@@ -53,7 +46,9 @@ export class QuizService {
     const quiz = await this.prisma.quiz.findUnique({
       where: { id },
       include: {
-        questions: true,
+        questions: {
+          orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+        },
       },
     });
 
