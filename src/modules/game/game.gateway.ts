@@ -93,12 +93,17 @@ export class GameGateway {
       throw new BadRequestException('Game is not waiting');
     }
 
-    const redisPipeline = this.redis.pipeline();
+    const existingPlayer = await this.redis.hget(
+      `game:${payload.pin}:players`,
+      payload.playerId,
+    );
 
-    redisPipeline.hset(`game:${payload.pin}:players`, {
+    if (existingPlayer) {
+      throw new BadRequestException('Player already exists');
+    }
+
+    await this.redis.hset(`game:${payload.pin}:players`, {
       [payload.playerId]: payload.nickname,
     });
-
-    await redisPipeline.exec();
   }
 }
