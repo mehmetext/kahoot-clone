@@ -31,7 +31,7 @@ export class QuizController {
     @Body() createQuizDto: CreateQuizDto,
     @Req() req: Request & { user: UserResponseDto },
   ): Promise<QuizResponseDto> {
-    return this.quizService.create(createQuizDto, req.user.id);
+    return this.quizService.createQuiz(createQuizDto, req.user.id);
   }
 
   @Get()
@@ -41,7 +41,7 @@ export class QuizController {
   async findAll(
     @Req() req: Request & { user: UserResponseDto },
   ): Promise<QuizResponseDto[]> {
-    const quizzes = await this.quizService.findAll(req.user.id);
+    const quizzes = await this.quizService.findAllQuizzes(req.user.id);
     return quizzes;
   }
 
@@ -50,7 +50,7 @@ export class QuizController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   async findById(@Param('id') id: string): Promise<QuizResponseDto> {
-    const quiz = await this.quizService.findById(id);
+    const quiz = await this.quizService.findQuizById(id);
     if (!quiz) {
       throw new NotFoundException('Quiz not found');
     }
@@ -65,7 +65,7 @@ export class QuizController {
     @Param('id') id: string,
     @Body() updateQuizDto: UpdateQuizDto,
   ): Promise<QuizResponseDto> {
-    const quiz = await this.quizService.update(id, updateQuizDto);
+    const quiz = await this.quizService.updateQuiz(id, updateQuizDto);
     return quiz;
   }
 
@@ -74,6 +74,6 @@ export class QuizController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   async delete(@Param('id') id: string): Promise<void> {
-    await this.quizService.delete(id);
+    await this.quizService.deleteQuiz(id);
   }
 }

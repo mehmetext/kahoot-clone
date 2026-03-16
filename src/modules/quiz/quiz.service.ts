@@ -8,7 +8,7 @@ import { UpdateQuizDto } from './dtos/update-quiz.dto';
 export class QuizService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createQuizDto: CreateQuizDto, userId: string) {
+  async createQuiz(createQuizDto: CreateQuizDto, userId: string) {
     const quiz = this.prisma.quiz.create({
       data: {
         name: createQuizDto.name,
@@ -19,7 +19,7 @@ export class QuizService {
     return quiz;
   }
 
-  async findAll(userId: string) {
+  async findAllQuizzes(userId: string) {
     const quizzes = await this.prisma.quiz.findMany({
       where: { userId },
       include: {
@@ -36,7 +36,7 @@ export class QuizService {
     }));
   }
 
-  async findById(id: string) {
+  async findQuizById(id: string) {
     const quiz = await this.prisma.quiz.findUnique({
       where: { id },
       include: {
@@ -57,7 +57,7 @@ export class QuizService {
     };
   }
 
-  async update(id: string, updateQuizDto: UpdateQuizDto) {
+  async updateQuiz(id: string, updateQuizDto: UpdateQuizDto) {
     const quiz = await this.prisma.quiz.update({
       where: { id },
       data: updateQuizDto,
@@ -66,7 +66,7 @@ export class QuizService {
     return quiz;
   }
 
-  async delete(id: string) {
+  async deleteQuiz(id: string) {
     await this.prisma.quiz.update({
       where: { id },
       data: {
