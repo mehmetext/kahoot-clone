@@ -58,7 +58,7 @@ export class AuthService {
       : this.configService.getOrThrow<ms.StringValue>('JWT_EXPIRES_IN');
 
     const accessToken = this.jwtService.sign(
-      { userId: user.id },
+      { sub: user.id },
       {
         secret: this.configService.getOrThrow<string>('JWT_SECRET'),
         expiresIn: accessTokenExpiresIn,

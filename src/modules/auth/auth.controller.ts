@@ -1,6 +1,13 @@
-import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
 import { CreateUserDto } from '../user/dtos/create-user.dto';
 import { AuthService } from './auth.service';
@@ -26,5 +33,13 @@ export class AuthController {
   @ApiOkResponseGeneric(LoginResponseDto)
   register(@Body() createUserDto: CreateUserDto): Promise<LoginResponseDto> {
     return this.authService.register(createUserDto);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOkResponseGeneric(UserResponseDto)
+  me(@Request() req: Request & { user: UserResponseDto }): UserResponseDto {
+    return req.user;
   }
 }
