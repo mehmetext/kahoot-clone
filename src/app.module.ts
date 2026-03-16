@@ -3,9 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -27,18 +25,7 @@ import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.getOrThrow<string>('DB_URL'),
-        autoLoadEntities: true,
-        synchronize: true,
-      }),
-    }),
     EventEmitterModule.forRoot(),
-    LeaderboardModule,
   ],
   controllers: [],
   providers: [
