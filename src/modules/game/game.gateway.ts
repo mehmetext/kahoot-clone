@@ -76,5 +76,7 @@ export class GameGateway {
     redisPipeline.hset(`game:${payload.pin}:players`, {
       [payload.playerId]: payload.nickname,
     });
+
+    await redisPipeline.exec();
   }
 }
