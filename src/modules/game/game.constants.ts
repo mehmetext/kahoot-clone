@@ -1,0 +1,1 @@
+export const GAME_COUNTDOWN_SECONDS = 5;
