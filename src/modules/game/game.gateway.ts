@@ -56,4 +56,25 @@ export class GameGateway {
       countdown: GAME_COUNTDOWN_SECONDS,
     });
   }
+
+  @SubscribeMessage('player:join')
+  async handlePlayerJoin(
+    @MessageBody() payload: { pin: string; nickname: string; playerId: string },
+  ) {
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    if (game.status !== GameStatus.WAITING) {
+      throw new BadRequestException('Game is not waiting');
+    }
+
+    const redisPipeline = this.redis.pipeline();
+
+    redisPipeline.hset(`game:${payload.pin}:players`, {
+      [payload.playerId]: payload.nickname,
+    });
+  }
 }
