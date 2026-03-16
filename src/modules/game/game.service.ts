@@ -53,6 +53,7 @@ export class GameService {
     const clearGamePayload: ClearGamePayload = { pin };
     await this.gameQueue.add('clear-game', clearGamePayload, {
       delay: 1000 * 60 * 60 * 2, // 2 hours
+      jobId: `clear-game:${pin}`,
     });
 
     return {
