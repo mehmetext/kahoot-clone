@@ -22,7 +22,8 @@ export class GameResponseDto {
 
   @ApiProperty({
     description: 'The status of the game',
-    example: 'WAITING',
+    example: GameStatus.WAITING,
+    enum: GameStatus,
   })
   status: GameStatus;
 
