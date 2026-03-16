@@ -6,6 +6,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from './modules/auth/auth.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { PrismaModule } from './shared/modules/prisma/prisma.module';
+import { QuizModule } from './modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PrismaModule } from './shared/modules/prisma/prisma.module';
     }),
     EventEmitterModule.forRoot(),
     AuthModule,
+    QuizModule,
   ],
   controllers: [],
   providers: [
