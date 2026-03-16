@@ -1,0 +1,31 @@
+model Quiz {
+  id String @id @default(uuid())
+
+  pin       String     @unique
+  name      String
+  questions Question[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("quizzes")
+}
+
+model Question {
+  id String @id @default(uuid())
+
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id])
+
+  title              String
+  options            Json[]
+  order              Int
+  timeLimitInSeconds Int
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("questions")
+}
