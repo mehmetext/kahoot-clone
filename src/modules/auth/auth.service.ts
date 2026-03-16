@@ -1,5 +1,9 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -90,6 +94,14 @@ export class AuthService {
   }
 
   async register(createUserDto: CreateUserDto) {
+    const existingUser = await this.userService.findByEmail(
+      createUserDto.email,
+    );
+
+    if (existingUser) {
+      throw new BadRequestException('Email already in use');
+    }
+
     const user = await this.userService.create(createUserDto);
 
     return this.login(user);
