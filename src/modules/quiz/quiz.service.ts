@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from 'src/shared/modules/prisma/prisma.service';
+import { CreateQuestionDto } from './dtos/create-question.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
 import { QuestionOptionResponseDto } from './dtos/question-response.dto';
 import { UpdateQuizDto } from './dtos/update-quiz.dto';
@@ -73,5 +75,26 @@ export class QuizService {
         deletedAt: new Date(),
       },
     });
+  }
+
+  async createQuestion(quizId: string, createQuestionDto: CreateQuestionDto) {
+    const question = await this.prisma.question.create({
+      data: {
+        quizId,
+        title: createQuestionDto.title,
+        options: createQuestionDto.options.map((o) => ({
+          id: randomUUID(),
+          option: o.option,
+          isCorrect: o.isCorrect,
+        })),
+        order: createQuestionDto.order,
+        timeLimitInSeconds: createQuestionDto.timeLimitInSeconds,
+      },
+    });
+
+    return {
+      ...question,
+      options: question.options as unknown as QuestionOptionResponseDto[],
+    };
   }
 }

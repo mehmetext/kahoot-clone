@@ -5,6 +5,12 @@ export class QuestionOptionResponseDto {
     description: 'The id of the option',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
+  id: string;
+
+  @ApiProperty({
+    description: 'The option',
+    example: 'Paris',
+  })
   option: string;
 
   @ApiProperty({

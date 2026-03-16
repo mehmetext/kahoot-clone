@@ -18,6 +18,8 @@ import { CreateQuizDto } from './dtos/create-quiz.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
 import { UpdateQuizDto } from './dtos/update-quiz.dto';
 import { QuizService } from './quiz.service';
+import { QuestionResponseDto } from './dtos/question-response.dto';
+import { CreateQuestionDto } from './dtos/create-question.dto';
 
 @Controller('quizzes')
 export class QuizController {
@@ -75,5 +77,16 @@ export class QuizController {
   @ApiBearerAuth()
   async delete(@Param('id') id: string): Promise<void> {
     await this.quizService.deleteQuiz(id);
+  }
+
+  @Post(':id/questions')
+  @ApiOkResponseGeneric(QuestionResponseDto)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async createQuestion(
+    @Param('id') id: string,
+    @Body() createQuestionDto: CreateQuestionDto,
+  ): Promise<QuestionResponseDto> {
+    return this.quizService.createQuestion(id, createQuestionDto);
   }
 }
