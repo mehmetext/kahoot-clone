@@ -13,6 +13,7 @@ import { CreateUserDto } from '../user/dtos/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginResponseDto } from './dtos/login-response.dto';
 import { LoginDto } from './dtos/login.dto';
+import { RefreshTokenDto } from './dtos/refresh-token.dto';
 import { UserResponseDto } from './dtos/user-response.dto';
 
 @Controller('auth')
@@ -41,5 +42,13 @@ export class AuthController {
   @ApiOkResponseGeneric(UserResponseDto)
   me(@Request() req: Request & { user: UserResponseDto }): UserResponseDto {
     return req.user;
+  }
+
+  @Post('refresh-token')
+  @ApiOkResponseGeneric(LoginResponseDto)
+  refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 }
