@@ -42,9 +42,9 @@ export class QuizService {
     }));
   }
 
-  async findQuizById(id: string) {
+  async findQuizById(id: string, userId?: string) {
     const quiz = await this.prisma.quiz.findUnique({
-      where: { id },
+      where: { id, userId },
       include: {
         questions: {
           orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
@@ -65,18 +65,18 @@ export class QuizService {
     };
   }
 
-  async updateQuiz(id: string, updateQuizDto: UpdateQuizDto) {
+  async updateQuiz(id: string, updateQuizDto: UpdateQuizDto, userId: string) {
     const quiz = await this.prisma.quiz.update({
-      where: { id },
+      where: { id, userId },
       data: updateQuizDto,
     });
 
     return quiz;
   }
 
-  async deleteQuiz(id: string) {
+  async deleteQuiz(id: string, userId: string) {
     await this.prisma.quiz.update({
-      where: { id },
+      where: { id, userId },
       data: {
         deletedAt: new Date(),
       },
