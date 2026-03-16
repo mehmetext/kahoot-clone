@@ -1,6 +1,10 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaService } from 'src/shared/modules/prisma/prisma.service';
@@ -33,13 +37,32 @@ export class GameService {
       throw new NotFoundException('Quiz not found');
     }
 
-    const pin = generateRandomPin();
+    let pin: string;
+    let attempt = 0;
+    const maxAttempts = 5;
+    let isGameExists = true;
+
+    // generate up to 5 times a unique pin
+    while (attempt < maxAttempts) {
+      pin = generateRandomPin();
+      isGameExists = (await this.redis.sismember(`games`, pin)) === 1;
+      if (!isGameExists) {
+        break;
+      }
+      attempt++;
+    }
+
+    if (isGameExists) {
+      throw new BadRequestException(
+        'Could not generate a unique pin after 5 attempts',
+      );
+    }
 
     const redisPipeline = this.redis.pipeline();
 
-    redisPipeline.sadd(`games`, pin);
-    redisPipeline.sadd(`user:${userId}:games`, pin);
-    redisPipeline.hset(`game:${pin}`, {
+    redisPipeline.sadd(`games`, pin!);
+    redisPipeline.sadd(`user:${userId}:games`, pin!);
+    redisPipeline.hset(`game:${pin!}`, {
       quizId: createGameDto.quizId,
       hostId: userId,
       status: GameStatus.WAITING,
@@ -50,14 +73,14 @@ export class GameService {
     await redisPipeline.exec();
 
     // If the game is not started after 2 hours, it will be ended automatically
-    const clearGamePayload: ClearGamePayload = { pin };
+    const clearGamePayload: ClearGamePayload = { pin: pin! };
     await this.gameQueue.add('clear-game', clearGamePayload, {
       delay: 1000 * 60 * 60 * 2, // 2 hours
-      jobId: `clear-game:${pin}`,
+      jobId: `clear-game:${pin!}`,
     });
 
     return {
-      pin,
+      pin: pin!,
       quizId: createGameDto.quizId,
       hostId: userId,
       status: GameStatus.WAITING,
