@@ -93,24 +93,44 @@ export class GameGateway {
       throw new BadRequestException('Game is not waiting');
     }
 
-    const existingPlayer = await this.redis.hget(
+    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+
+    if (playerCount > 99) {
+      this.server.to(`game:${payload.pin}`).emit('error', {
+        message: 'The game is full',
+      });
+      return;
+    }
+
+    const existingPlayerId = await this.redis.hget(
       `game:${payload.pin}:players`,
       payload.playerId,
     );
 
-    if (existingPlayer) {
-      throw new BadRequestException('Player already exists');
+    const existingNickname = await this.redis.sismember(
+      `game:${payload.pin}:nicknames`,
+      payload.nickname,
+    );
+
+    if (existingPlayerId || existingNickname) {
+      this.server.to(`game:${payload.pin}`).emit('error', {
+        message: 'The player is already in the game',
+      });
+      return;
     }
 
-    await this.redis.hset(`game:${payload.pin}:players`, {
+    const redisPipeline = this.redis.pipeline();
+
+    redisPipeline.hset(`game:${payload.pin}:players`, {
       [payload.playerId]: payload.nickname,
     });
+    redisPipeline.sadd(`game:${payload.pin}:nicknames`, payload.nickname);
 
-    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+    await redisPipeline.exec();
 
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
-      playerCount,
+      playerCount: playerCount + 1,
     });
   }
 }
