@@ -7,5 +7,10 @@ export class ApiResponse<T> {
   })
   success: boolean;
 
+  @ApiProperty({
+    description: 'The data of the response',
+    type: Object,
+    nullable: true,
+  })
   data: T;
 }
