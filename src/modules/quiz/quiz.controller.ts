@@ -1,19 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
+import { UpdateQuizDto } from './dtos/update-quiz.dto';
 import { QuizService } from './quiz.service';
 
 @Controller('quizzes')
@@ -52,5 +55,25 @@ export class QuizController {
       throw new NotFoundException('Quiz not found');
     }
     return quiz;
+  }
+
+  @Put(':id')
+  @ApiOkResponseGeneric(QuizResponseDto)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async update(
+    @Param('id') id: string,
+    @Body() updateQuizDto: UpdateQuizDto,
+  ): Promise<QuizResponseDto> {
+    const quiz = await this.quizService.update(id, updateQuizDto);
+    return quiz;
+  }
+
+  @Delete(':id')
+  @ApiNoContentResponse()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async delete(@Param('id') id: string): Promise<void> {
+    await this.quizService.delete(id);
   }
 }
