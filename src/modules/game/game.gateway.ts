@@ -37,6 +37,8 @@ export class GameGateway {
       throw new BadRequestException('Game is not waiting');
     }
 
+    await this.gameQueue.remove(`clear-game-${payload.pin}`);
+
     await this.redis.hset(`game:${payload.pin}`, {
       status: GameStatus.STARTING,
       startedAt: new Date(),
