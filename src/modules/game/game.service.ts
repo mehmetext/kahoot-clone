@@ -1,8 +1,11 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaService } from 'src/shared/modules/prisma/prisma.service';
 import { generateRandomPin } from 'src/shared/utils/generate-pin';
+import { ClearGamePayload } from './dtos/clear-game.payload';
 import { CreateGameDto } from './dtos/create-game.dto';
 import { GameResponseDto } from './dtos/game-response.dto';
 import { GameStatus } from './enums/game-status.enum';
@@ -12,6 +15,7 @@ export class GameService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectRedis() private readonly redis: Redis,
+    @InjectQueue('game') private gameQueue: Queue,
   ) {}
 
   async createGame(
@@ -44,6 +48,12 @@ export class GameService {
     });
 
     await redisPipeline.exec();
+
+    // If the game is not started after 2 hours, it will be ended automatically
+    const clearGamePayload: ClearGamePayload = { pin };
+    await this.gameQueue.add('clear-game', clearGamePayload, {
+      delay: 1000 * 60 * 60 * 2, // 2 hours
+    });
 
     return {
       pin,

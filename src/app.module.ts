@@ -1,13 +1,13 @@
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from './modules/auth/auth.module';
+import { GameModule } from './modules/game/game.module';
+import { QuizModule } from './modules/quiz/quiz.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { PrismaModule } from './shared/modules/prisma/prisma.module';
-import { QuizModule } from './modules/quiz/quiz.module';
-import { GameModule } from './modules/game/game.module';
 
 @Module({
   imports: [
@@ -30,7 +30,15 @@ import { GameModule } from './modules/game/game.module';
       }),
       inject: [ConfigService],
     }),
-    EventEmitterModule.forRoot(),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          url: configService.getOrThrow<string>('REDIS_URL'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     AuthModule,
     QuizModule,
     GameModule,
