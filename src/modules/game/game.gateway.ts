@@ -59,6 +59,26 @@ export class GameGateway {
     });
   }
 
+  async handleHostEndGame(@MessageBody() payload: { pin: string }) {
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    await this.gameQueue.remove(`start-game-${payload.pin}`);
+
+    await this.redis.hset(`game:${payload.pin}`, {
+      status: GameStatus.ENDED,
+    });
+
+    const leaderboard = await this.gameService.getLeaderboard(payload.pin);
+
+    this.server.to(`game:${payload.pin}`).emit('game:ended', {
+      leaderboard,
+    });
+  }
+
   @SubscribeMessage('player:join')
   async handlePlayerJoin(
     @MessageBody() payload: { pin: string; nickname: string; playerId: string },

@@ -12,6 +12,7 @@ import { generateRandomPin } from 'src/shared/utils/generate-pin';
 import { ClearGamePayload } from './dtos/clear-game.payload';
 import { CreateGameDto } from './dtos/create-game.dto';
 import { GameResponseDto } from './dtos/game-response.dto';
+import { LeaderboardItemResponseDto } from './dtos/leaderboard-item.dto';
 import { GameStatus } from './enums/game-status.enum';
 
 @Injectable()
@@ -140,5 +141,28 @@ export class GameService {
       currentQuestionIndex: Number(game.currentQuestionIndex),
       startedAt: game.startedAt ? new Date(game.startedAt) : null,
     };
+  }
+
+  async getLeaderboard(pin: string): Promise<LeaderboardItemResponseDto[]> {
+    const [leaderboardInRedis, players] = await Promise.all([
+      this.redis.zrange(`game:${pin}:scores`, 0, -1, 'REV', 'WITHSCORES'),
+      this.redis.hgetall(`game:${pin}:players`),
+    ]);
+
+    const leaderboard = leaderboardInRedis.reduce<LeaderboardItemResponseDto[]>(
+      (acc, value, index) => {
+        if (index % 2 === 0) {
+          acc.push({
+            playerId: value,
+            score: Number(leaderboardInRedis[index + 1]),
+            nickname: players[value] ?? null,
+          });
+        }
+        return acc;
+      },
+      [],
+    );
+
+    return leaderboard;
   }
 }
