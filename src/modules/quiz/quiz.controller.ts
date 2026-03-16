@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
@@ -7,7 +16,7 @@ import { CreateQuizDto } from './dtos/create-quiz.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
 import { QuizService } from './quiz.service';
 
-@Controller('quiz')
+@Controller('quizzes')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
@@ -23,12 +32,25 @@ export class QuizController {
   }
 
   @Get()
+  @ApiOkResponseGeneric(QuizResponseDto, { isArray: true })
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async findAll(
+    @Req() req: Request & { user: UserResponseDto },
+  ): Promise<QuizResponseDto[]> {
+    const quizzes = await this.quizService.findAll(req.user.id);
+    return quizzes;
+  }
+
+  @Get(':id')
   @ApiOkResponseGeneric(QuizResponseDto)
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  findAll(
-    @Req() req: Request & { user: UserResponseDto },
-  ): Promise<QuizResponseDto[]> {
-    return this.quizService.findAll(req.user.id);
+  async findById(@Param('id') id: string): Promise<QuizResponseDto> {
+    const quiz = await this.quizService.findById(id);
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+    return quiz;
   }
 }
