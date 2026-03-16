@@ -27,7 +27,16 @@ export class QuizService {
     const quizzes = await this.prisma.quiz.findMany({
       where: { userId },
       include: {
-        questions: true,
+        questions: {
+          orderBy: [
+            {
+              order: 'asc',
+            },
+            {
+              createdAt: 'desc',
+            },
+          ],
+        },
       },
     });
 
