@@ -41,7 +41,7 @@ export class GameGateway {
 
     await this.redis.hset(`game:${payload.pin}`, {
       status: GameStatus.STARTING,
-      startedAt: new Date(),
+      startedAt: new Date().toISOString(),
     });
 
     await this.gameQueue.add(
