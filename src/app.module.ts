@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { PrismaModule } from './shared/modules/prisma/prisma.module';
 import { QuizModule } from './modules/quiz/quiz.module';
+import { GameModule } from './modules/game/game.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { QuizModule } from './modules/quiz/quiz.module';
     EventEmitterModule.forRoot(),
     AuthModule,
     QuizModule,
+    GameModule,
   ],
   controllers: [],
   providers: [
