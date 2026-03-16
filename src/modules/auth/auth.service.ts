@@ -106,4 +106,22 @@ export class AuthService {
 
     return this.login(user);
   }
+
+  async refreshToken(refreshToken: string) {
+    const userId = await this.redis.get(`refresh-token:${refreshToken}`);
+
+    if (!userId) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    await this.redis.del(`refresh-token:${refreshToken}`);
+
+    const user = await this.userService.findById(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.login(user);
+  }
 }
