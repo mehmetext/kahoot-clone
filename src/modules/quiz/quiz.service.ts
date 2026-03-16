@@ -4,6 +4,7 @@ import { PrismaService } from 'src/shared/modules/prisma/prisma.service';
 import { CreateQuestionDto } from './dtos/create-question.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
 import { QuestionOptionResponseDto } from './dtos/question-response.dto';
+import { UpdateQuestionOptionsDto } from './dtos/update-question-option.dto';
 import { UpdateQuestionDto } from './dtos/update-question.dto';
 import { UpdateQuizDto } from './dtos/update-quiz.dto';
 
@@ -120,6 +121,57 @@ export class QuizService {
     return {
       ...question,
       options: question.options as unknown as QuestionOptionResponseDto[],
+    };
+  }
+
+  async updateQuestionOptions(
+    id: string,
+    updateQuestionOptionsDto: UpdateQuestionOptionsDto,
+  ) {
+    const question = await this.prisma.question.findUnique({
+      where: { id },
+    });
+
+    if (!question) {
+      return null;
+    }
+
+    const existingOptions =
+      (question.options as unknown as QuestionOptionResponseDto[]) ?? [];
+
+    const resultOptions: QuestionOptionResponseDto[] =
+      updateQuestionOptionsDto.options.map((incomingOption) => {
+        const existing: QuestionOptionResponseDto | undefined =
+          incomingOption.id !== undefined
+            ? existingOptions.find((option) => option.id === incomingOption.id)
+            : undefined;
+
+        if (existing) {
+          return {
+            ...existing,
+            option: incomingOption.option,
+            isCorrect: incomingOption.isCorrect,
+          };
+        }
+
+        return {
+          id: randomUUID(),
+          option: incomingOption.option,
+          isCorrect: incomingOption.isCorrect,
+        };
+      });
+
+    const updatedQuestion = await this.prisma.question.update({
+      where: { id },
+      data: {
+        options: resultOptions as unknown as object[],
+      },
+    });
+
+    return {
+      ...updatedQuestion,
+      options:
+        updatedQuestion.options as unknown as QuestionOptionResponseDto[],
     };
   }
 

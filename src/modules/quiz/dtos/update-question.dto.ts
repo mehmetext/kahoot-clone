@@ -1,29 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
-
-export class UpdateQuestionOptionDto {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({
-    description: 'The option',
-    example: 'Paris',
-  })
-  option: string;
-
-  @IsBoolean()
-  @IsNotEmpty()
-  @ApiProperty({
-    description: 'The is correct of the option',
-    example: true,
-  })
-  isCorrect: boolean;
-}
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateQuestionDto {
   @IsString()

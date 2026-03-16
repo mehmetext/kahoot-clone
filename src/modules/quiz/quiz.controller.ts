@@ -16,6 +16,7 @@ import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-gene
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { CreateQuestionDto } from './dtos/create-question.dto';
 import { CreateQuizDto } from './dtos/create-quiz.dto';
+import { UpdateQuestionOptionsDto } from './dtos/update-question-option.dto';
 import { QuestionResponseDto } from './dtos/question-response.dto';
 import { QuizResponseDto } from './dtos/quiz-response.dto';
 import { UpdateQuestionDto } from './dtos/update-question.dto';
@@ -100,6 +101,20 @@ export class QuizController {
     @Body() updateQuestionDto: UpdateQuestionDto,
   ): Promise<QuestionResponseDto> {
     return this.quizService.updateQuestion(questionId, updateQuestionDto);
+  }
+
+  @Put(':id/questions/:questionId/options')
+  @ApiOkResponseGeneric(QuestionResponseDto)
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async updateQuestionOptions(
+    @Param('questionId') questionId: string,
+    @Body() updateQuestionOptionsDto: UpdateQuestionOptionsDto,
+  ): Promise<QuestionResponseDto | null> {
+    return this.quizService.updateQuestionOptions(
+      questionId,
+      updateQuestionOptionsDto,
+    );
   }
 
   @Delete(':id/questions/:questionId')
