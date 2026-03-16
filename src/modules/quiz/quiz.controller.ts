@@ -96,10 +96,17 @@ export class QuizController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   async updateQuestion(
-    @Param('id') id: string,
     @Param('questionId') questionId: string,
     @Body() updateQuestionDto: UpdateQuestionDto,
   ): Promise<QuestionResponseDto> {
     return this.quizService.updateQuestion(questionId, updateQuestionDto);
+  }
+
+  @Delete(':id/questions/:questionId')
+  @ApiNoContentResponse()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  async deleteQuestion(@Param('questionId') questionId: string): Promise<void> {
+    await this.quizService.deleteQuestion(questionId);
   }
 }
