@@ -2,7 +2,7 @@ import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { BaseResponseInterceptor } from './common/interceptors/base-response.interceptor';
+import { BaseResponseInterceptor } from './shared/interceptors/base-response.interceptor';
 
 async function bootstrap() {
   if (!process.env.PORT) {
