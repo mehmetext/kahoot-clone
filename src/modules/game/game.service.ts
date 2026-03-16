@@ -77,6 +77,12 @@ export class GameService {
     await this.gameQueue.add('clear-game', clearGamePayload, {
       delay: 1000 * 60 * 60 * 2, // 2 hours
       jobId: `clear-game-${pin!}`,
+      removeOnComplete: true,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000 * 60, // 1 minute
+      },
     });
 
     return {
