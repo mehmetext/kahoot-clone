@@ -31,7 +31,14 @@ import {
 } from './game.constants';
 import { GameService } from './game.service';
 
-@WebSocketGateway({ namespace: 'game' })
+@WebSocketGateway({
+  namespace: 'game',
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Authorization'],
+  },
+})
 @UseFilters(WsExceptionFilter)
 export class GameGateway implements OnGatewayConnection {
   private readonly logger = new Logger(GameGateway.name);
