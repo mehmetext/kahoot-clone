@@ -1,10 +1,18 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import {
+  InjectQueue,
+  OnWorkerEvent,
+  Processor,
+  WorkerHost,
+} from '@nestjs/bullmq';
 import { Logger, NotFoundException } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { ClearGamePayload } from './dtos/clear-game.payload';
+import { NextQuestionPayload } from './dtos/next-question.payload';
+import { QuestionStartPayload } from './dtos/question:start.payload';
 import { GameStatus } from './enums/game-status.enum';
+import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
 import { GameGateway } from './game.gateway';
 import { GameService } from './game.service';
 
@@ -16,6 +24,7 @@ export class GameProcessor extends WorkerHost {
     private readonly gameService: GameService,
     @InjectRedis() private readonly redis: Redis,
     private readonly gameGateway: GameGateway,
+    @InjectQueue('game') private readonly gameQueue: Queue,
   ) {
     super();
   }
@@ -27,6 +36,9 @@ export class GameProcessor extends WorkerHost {
         break;
       case 'start-game':
         await this.startGame(job.data as { pin: string });
+        break;
+      case 'next-question':
+        await this.nextQuestion(job.data as NextQuestionPayload);
         break;
     }
   }
@@ -62,7 +74,50 @@ export class GameProcessor extends WorkerHost {
       status: GameStatus.ACTIVE,
     });
 
-    // this.gameGateway.server.to(`game:${pin}`).emit('question:start', {});
+    const nextQuestionPayload: NextQuestionPayload = { pin };
+    await this.gameQueue.add('next-question', nextQuestionPayload, {
+      jobId: `next-question-${pin}`,
+      removeOnComplete: true,
+    });
+  }
+
+  async nextQuestion(data: NextQuestionPayload): Promise<void> {
+    const game = await this.gameService.getGame(data.pin);
+
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    const currentQuestionIndex = game.currentQuestionIndex;
+    const questions = game.questions;
+    const timeLimitInSeconds =
+      questions[currentQuestionIndex].timeLimitInSeconds ??
+      QUESTION_END_TIME_LIMIT_IN_SECONDS;
+
+    const questionStartPayload: QuestionStartPayload = {
+      text: questions[currentQuestionIndex].title,
+      answers: questions[currentQuestionIndex].options.map((option) => ({
+        id: option.id,
+        text: option.option,
+      })),
+      timeLimitInSeconds,
+      currentQuestionIndex: currentQuestionIndex,
+      totalQuestionCount: questions.length,
+    };
+
+    this.gameGateway.server
+      .to(`game:${data.pin}`)
+      .emit('question:start', questionStartPayload);
+
+    await this.gameQueue.add(
+      'end-question',
+      { pin: data.pin },
+      {
+        jobId: `end-question-${data.pin}`,
+        removeOnComplete: true,
+        delay: timeLimitInSeconds * 1000,
+      },
+    );
   }
 
   @OnWorkerEvent('active')

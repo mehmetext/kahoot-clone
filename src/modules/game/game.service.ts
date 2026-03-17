@@ -9,9 +9,13 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { PrismaService } from 'src/shared/modules/prisma/prisma.service';
 import { generateRandomPin } from 'src/shared/utils/generate-pin';
+import { QuestionOptionResponseDto } from '../quiz/dtos/question-response.dto';
 import { ClearGamePayload } from './dtos/clear-game.payload';
 import { CreateGameDto } from './dtos/create-game.dto';
-import { GameResponseDto } from './dtos/game-response.dto';
+import {
+  GameQuestionResponseDto,
+  GameResponseDto,
+} from './dtos/game-response.dto';
 import { LeaderboardItemResponseDto } from './dtos/leaderboard-item.dto';
 import { GameStatus } from './enums/game-status.enum';
 
@@ -31,6 +35,11 @@ export class GameService {
       where: {
         id: createGameDto.quizId,
         userId,
+      },
+      include: {
+        questions: {
+          orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+        },
       },
     });
 
@@ -65,10 +74,26 @@ export class GameService {
     redisPipeline.sadd(`user:${userId}:games`, pin!);
     redisPipeline.hset(`game:${pin!}`, {
       quizId: createGameDto.quizId,
+      name: quiz.name,
       hostId: userId,
       status: GameStatus.WAITING,
+      questionCount: quiz.questions.length,
       currentQuestionIndex: 0,
       startedAt: null,
+      questions: JSON.stringify(
+        quiz.questions.map((question) => ({
+          id: question.id,
+          title: question.title,
+          options: (
+            question.options as unknown as QuestionOptionResponseDto[]
+          ).map((option) => ({
+            id: option.id,
+            option: option.option,
+            isCorrect: option.isCorrect,
+          })),
+          timeLimitInSeconds: question.timeLimitInSeconds,
+        })),
+      ),
     });
 
     await redisPipeline.exec();
@@ -88,6 +113,21 @@ export class GameService {
 
     return {
       pin: pin!,
+      name: quiz.name,
+      questionCount: quiz.questions.length,
+      questions: quiz.questions.map((question) => ({
+        id: question.id,
+        title: question.title,
+        options: (
+          question.options as unknown as QuestionOptionResponseDto[]
+        ).map((option) => ({
+          id: option.id,
+          option: option.option,
+          isCorrect: option.isCorrect,
+        })),
+        timeLimitInSeconds: question.timeLimitInSeconds,
+        order: question.order,
+      })),
       quizId: createGameDto.quizId,
       hostId: userId,
       status: GameStatus.WAITING,
@@ -116,6 +156,11 @@ export class GameService {
 
       const gameResponseDto: GameResponseDto = {
         pin: gamePins[index],
+        name: game.name,
+        questionCount: Number(game.questionCount),
+        questions: JSON.parse(
+          game.questions as unknown as string,
+        ) as GameQuestionResponseDto[],
         quizId: game.quizId,
         hostId: game.hostId,
         status: game.status as GameStatus,
@@ -135,6 +180,11 @@ export class GameService {
 
     return {
       pin,
+      name: game.name,
+      questionCount: Number(game.questionCount),
+      questions: JSON.parse(
+        game.questions as unknown as string,
+      ) as GameQuestionResponseDto[],
       quizId: game.quizId,
       hostId: game.hostId,
       status: game.status as GameStatus,

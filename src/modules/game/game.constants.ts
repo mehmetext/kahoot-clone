@@ -1,1 +1,2 @@
 export const GAME_COUNTDOWN_SECONDS = 5;
+export const QUESTION_END_TIME_LIMIT_IN_SECONDS = 10;
