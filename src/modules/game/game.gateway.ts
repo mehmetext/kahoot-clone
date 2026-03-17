@@ -84,6 +84,10 @@ export class GameGateway implements OnGatewayConnection {
       return { success: false, message: 'You are not the host of this game' };
     }
 
+    if (game.status === GameStatus.ENDED) {
+      return { success: false, message: 'Game is already ended' };
+    }
+
     await client.join(`game:${payload.pin}`);
 
     await this.redis.hset(`game:${payload.pin}:sockets`, {
@@ -228,15 +232,6 @@ export class GameGateway implements OnGatewayConnection {
         return { success: false, message: 'The game is full' };
       }
 
-      const existingNickname = await this.redis.sismember(
-        `game:${payload.pin}:nicknames`,
-        payload.nickname,
-      );
-
-      if (existingNickname) {
-        return { success: false, message: 'Nickname is already taken' };
-      }
-
       playerId = randomUUID();
 
       const redisPipeline = this.redis.pipeline();
@@ -246,7 +241,13 @@ export class GameGateway implements OnGatewayConnection {
       });
       redisPipeline.sadd(`game:${payload.pin}:nicknames`, payload.nickname);
 
-      await redisPipeline.exec();
+      const pipelineResults = await redisPipeline.exec();
+      const saddResult = pipelineResults?.[1]?.[1];
+
+      if (saddResult !== 1) {
+        await this.redis.hdel(`game:${payload.pin}:players`, playerId);
+        return { success: false, message: 'Nickname is already taken' };
+      }
     }
 
     await client.join(`game:${payload.pin}`);
@@ -293,6 +294,10 @@ export class GameGateway implements OnGatewayConnection {
       return { success: false, message: 'The game is not active' };
     }
 
+    if (game.currentQuestionIndex + 1 >= game.questions.length) {
+      return { success: false, message: 'No more questions' };
+    }
+
     /* Increment the current question index */
     await this.redis.hincrby(`game:${payload.pin}`, 'currentQuestionIndex', 1);
 
@@ -334,6 +339,14 @@ export class GameGateway implements OnGatewayConnection {
     );
 
     if (!playerId) {
+      return { success: false, message: 'Player not found' };
+    }
+
+    const playerNickname = await this.redis.hget(
+      `game:${payload.pin}:players`,
+      playerId,
+    );
+    if (!playerNickname) {
       return { success: false, message: 'Player not found' };
     }
 

@@ -89,6 +89,17 @@ export class GameProcessor extends WorkerHost {
       throw new NotFoundException('Game not found');
     }
 
+    if (
+      game.currentQuestionIndex < 0 ||
+      game.currentQuestionIndex >= game.questions.length
+    ) {
+      this.logger.warn(
+        `nextQuestion: index out of range (pin=${data.pin}, index=${game.currentQuestionIndex}, total=${game.questions.length})`,
+      );
+      await this.gameService.endGame(data.pin);
+      return;
+    }
+
     const initPipeline = this.redis.pipeline();
     initPipeline.hset(`game:${data.pin}`, {
       status: GameStatus.ACTIVE,
