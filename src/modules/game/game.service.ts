@@ -316,6 +316,7 @@ export class GameService {
       this.gameQueue.remove(`next-question-${pin}`),
       this.gameQueue.remove(`end-question-${pin}`),
       this.gameQueue.remove(`clear-game-${pin}`),
+      this.gameQueue.remove(`end-game-${pin}`),
     ]);
 
     const leaderboard = await this.getLeaderboard(pin);
