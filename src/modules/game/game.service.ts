@@ -148,6 +148,10 @@ export class GameService {
   async getGamesByUserId(userId: string) {
     const gamePins = await this.redis.smembers(`user:${userId}:games`);
 
+    if (gamePins.length === 0) {
+      return [];
+    }
+
     const redisPipeline = this.redis.pipeline();
 
     for (const gamePin of gamePins) {
@@ -156,18 +160,21 @@ export class GameService {
 
     const results = await redisPipeline.exec();
 
-    if (
-      !results ||
-      (results.length === 1 &&
-        results[0][0] === null &&
-        results[0][1] &&
-        Object.keys(results[0][1]).length === 0)
-    ) {
+    if (!results) {
       return [];
     }
 
-    return results.map((result, index) => {
-      const game = result[1] as Record<string, string>;
+    const stalePins: string[] = [];
+    const games: GameResponseDto[] = [];
+
+    for (let index = 0; index < results.length; index++) {
+      const game = results[index][1] as Record<string, string>;
+      const pin = gamePins[index];
+
+      if (!game || Object.keys(game).length === 0) {
+        stalePins.push(pin);
+        continue;
+      }
 
       const questions = game.questions
         ? (JSON.parse(
@@ -175,11 +182,11 @@ export class GameService {
           ) as GameQuestionResponseDto[])
         : [];
 
-      const gameResponseDto: GameResponseDto = {
-        pin: gamePins[index],
+      games.push({
+        pin,
         name: game.name,
         questionCount: Number(game.questionCount),
-        questions: questions,
+        questions,
         quizId: game.quizId,
         hostId: game.hostId,
         status: game.status as GameStatus,
@@ -188,10 +195,14 @@ export class GameService {
           ? new Date(game.currentQuestionStartedAt)
           : null,
         startedAt: game.startedAt ? new Date(game.startedAt) : null,
-      };
+      });
+    }
 
-      return gameResponseDto;
-    });
+    if (stalePins.length > 0) {
+      await this.redis.srem(`user:${userId}:games`, ...stalePins);
+    }
+
+    return games;
   }
 
   async getGame(pin: string): Promise<GameResponseDto | null> {
