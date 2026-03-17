@@ -105,21 +105,21 @@ export class GameProcessor extends WorkerHost {
       status: GameStatus.ACTIVE,
     });
 
-    const currentQuestionIndex = game.currentQuestionIndex;
-    const questions = game.questions;
     const timeLimitInSeconds =
-      questions[currentQuestionIndex].timeLimitInSeconds ??
+      game.questions[game.currentQuestionIndex].timeLimitInSeconds ??
       QUESTION_END_TIME_LIMIT_IN_SECONDS;
 
     const questionStartPayload: QuestionStartPayload = {
-      text: questions[currentQuestionIndex].title,
-      answers: questions[currentQuestionIndex].options.map((option) => ({
-        id: option.id,
-        text: option.option,
-      })),
+      text: game.questions[game.currentQuestionIndex].title,
+      answers: game.questions[game.currentQuestionIndex].options.map(
+        (option) => ({
+          id: option.id,
+          text: option.option,
+        }),
+      ),
       timeLimitInSeconds,
-      currentQuestionIndex: currentQuestionIndex,
-      totalQuestionCount: questions.length,
+      currentQuestionIndex: game.currentQuestionIndex,
+      totalQuestionCount: game.questions.length,
     };
 
     this.gameGateway.server
