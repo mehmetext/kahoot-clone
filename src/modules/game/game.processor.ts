@@ -34,9 +34,6 @@ export class GameProcessor extends WorkerHost {
       case 'clear-game':
         await this.clearGame(job.data as ClearGamePayload);
         break;
-      case 'start-game':
-        await this.startGame(job.data as { pin: string });
-        break;
       case 'next-question':
         await this.nextQuestion(job.data as NextQuestionPayload);
         break;
@@ -72,22 +69,6 @@ export class GameProcessor extends WorkerHost {
       this.gameQueue.remove(`end-question-${pin}`),
       this.gameQueue.remove(`next-question-${pin}`),
     ]);
-  }
-
-  async startGame(data: { pin: string }): Promise<void> {
-    const { pin } = data;
-
-    const game = await this.gameService.getGame(pin);
-
-    if (!game) {
-      throw new NotFoundException('Game not found');
-    }
-
-    const nextQuestionPayload: NextQuestionPayload = { pin };
-    await this.gameQueue.add('next-question', nextQuestionPayload, {
-      jobId: `next-question-${pin}`,
-      removeOnComplete: true,
-    });
   }
 
   async nextQuestion(data: NextQuestionPayload): Promise<void> {

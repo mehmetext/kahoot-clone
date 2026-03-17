@@ -49,11 +49,11 @@ export class GameGateway {
     });
 
     await this.gameQueue.add(
-      'start-game',
+      'next-question',
       { pin: payload.pin },
       {
         delay: GAME_COUNTDOWN_SECONDS * 1000,
-        jobId: `start-game-${payload.pin}`,
+        jobId: `next-question-${payload.pin}`,
         removeOnComplete: true,
       },
     );
@@ -163,7 +163,7 @@ export class GameGateway {
       'next-question',
       { pin: payload.pin },
       {
-        jobId: `start-question-${payload.pin}`,
+        jobId: `next-question-${payload.pin}`,
         removeOnComplete: true,
       },
     );
