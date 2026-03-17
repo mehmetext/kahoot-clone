@@ -2,6 +2,7 @@ import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
 import { forwardRef, Inject } from '@nestjs/common';
 import {
+  ConnectedSocket,
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
@@ -9,7 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { GameStatus } from './enums/game-status.enum';
 import { GAME_COUNTDOWN_SECONDS } from './game.constants';
 import { GameService } from './game.service';
@@ -75,6 +76,7 @@ export class GameGateway {
   @SubscribeMessage('player:join')
   async handlePlayerJoin(
     @MessageBody() payload: { pin: string; nickname: string; playerId: string },
+    @ConnectedSocket() client: Socket,
   ) {
     const game = await this.gameService.getGame(payload.pin);
 
@@ -97,23 +99,27 @@ export class GameGateway {
       payload.playerId,
     );
 
-    const existingNickname = await this.redis.sismember(
-      `game:${payload.pin}:nicknames`,
-      payload.nickname,
-    );
+    if (!existingPlayerId) {
+      const existingNickname = await this.redis.sismember(
+        `game:${payload.pin}:nicknames`,
+        payload.nickname,
+      );
 
-    if (existingPlayerId || existingNickname) {
-      return { success: false, message: 'The player is already in the game' };
+      if (existingNickname) {
+        return { success: false, message: 'The player is already in the game' };
+      }
+
+      const redisPipeline = this.redis.pipeline();
+
+      redisPipeline.hset(`game:${payload.pin}:players`, {
+        [payload.playerId]: payload.nickname,
+      });
+      redisPipeline.sadd(`game:${payload.pin}:nicknames`, payload.nickname);
+
+      await redisPipeline.exec();
     }
 
-    const redisPipeline = this.redis.pipeline();
-
-    redisPipeline.hset(`game:${payload.pin}:players`, {
-      [payload.playerId]: payload.nickname,
-    });
-    redisPipeline.sadd(`game:${payload.pin}:nicknames`, payload.nickname);
-
-    await redisPipeline.exec();
+    await client.join(`game:${payload.pin}`);
 
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
