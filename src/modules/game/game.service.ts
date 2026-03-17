@@ -21,6 +21,7 @@ import {
 } from './dtos/game-response.dto';
 import { LeaderboardItemResponseDto } from './dtos/leaderboard-item.dto';
 import { GameStatus } from './enums/game-status.enum';
+import { CLEAR_GAME_DELAY_AFTER_END_MS } from './game.constants';
 import { GameGateway } from './game.gateway';
 
 @Injectable()
@@ -317,6 +318,18 @@ export class GameService {
           score: item.score,
           nickname: item.nickname,
         })),
+      },
+    });
+
+    const clearGamePayload: ClearGamePayload = { pin };
+    await this.gameQueue.add('clear-game', clearGamePayload, {
+      delay: CLEAR_GAME_DELAY_AFTER_END_MS,
+      jobId: `clear-game-${pin}`,
+      removeOnComplete: true,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000 * 60, // 1 minute
       },
     });
   }

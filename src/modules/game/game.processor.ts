@@ -49,7 +49,8 @@ export class GameProcessor extends WorkerHost {
     const game = await this.gameService.getGame(pin);
 
     if (!game) {
-      throw new NotFoundException('Game not found');
+      this.logger.warn(`clearGame: game ${pin} already cleaned up, skipping`);
+      return;
     }
 
     const redisPipeline = this.redis.pipeline();
@@ -62,7 +63,12 @@ export class GameProcessor extends WorkerHost {
       `game:${pin}:nicknames`,
       `game:${pin}:scores`,
       `game:${pin}:current-question-scores`,
+      `game:${pin}:sockets`,
     );
+
+    for (let i = 0; i < game.questionCount; i++) {
+      redisPipeline.del(`game:${pin}:answered:${i}`);
+    }
 
     await redisPipeline.exec();
 
