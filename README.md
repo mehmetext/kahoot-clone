@@ -1,98 +1,181 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+## Realtime Kahoot Clone API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready, real-time “Kahoot”-like quiz game backend. Users create quizzes and start games; players join rooms via a PIN; questions are scheduled and score updates are broadcast instantly to all connected clients over WebSocket.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This repo uses **NestJS + Socket.IO + Redis + BullMQ + PostgreSQL (Prisma)**.
 
-## Description
+## Tech Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Layer | Technology |
+| ----- | ---------- |
+| **HTTP API**        | NestJS 11 (Node.js)                                  |
+| **Real-time**       | Socket.IO (`@nestjs/websockets`)                     |
+| **Database**        | PostgreSQL (Prisma + `@prisma/adapter-pg`)           |
+| **Cache / State**   | Redis (ioredis)                                      |
+| **Job Queue**       | BullMQ (`@nestjs/bullmq`)                            |
+| **Auth**            | JWT (access token) + refresh token (Redis), bcryptjs |
+| **Validation**      | class-validator + global `ValidationPipe`            |
+| **Docs**            | Swagger (`/api`)                                     |
+| **Language**        | TypeScript                                           |
+| **Package Manager** | pnpm                                                 |
 
-## Project setup
+## Running Locally
 
-```bash
-$ pnpm install
-```
+This project requires **PostgreSQL** and **Redis**.
 
-## Compile and run the project
+### 1) Environment variables
 
-```bash
-# development
-$ pnpm run start
+At minimum, the following are required:
 
-# watch mode
-$ pnpm run start:dev
+| Variable         | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `PORT`           | **Required.** HTTP port (e.g. `4000`)                         |
+| `DATABASE_URL`   | **Required.** PostgreSQL connection string                    |
+| `REDIS_URL`      | **Required.** Redis connection string                         |
+| `JWT_SECRET`     | **Required.** JWT signing secret                              |
+| `JWT_EXPIRES_IN` | **Required in production.** `ms` format (e.g. `15m`)          |
+| `NODE_ENV`       | `development` \| `production` (affects token TTL behavior)    |
 
-# production mode
-$ pnpm run start:prod
-```
+Notes:
 
-## Run tests
+- With `NODE_ENV=development`, the access token TTL is **15 days**.
+- Refresh tokens are stored in Redis as `refresh-token:{uuid}` with a **7-day** TTL.
+- On login, a user snapshot is written to Redis as `user:{id}` (hash). WebSocket auth also validates from this cache.
+
+### 2) Install + migrations + run
 
 ```bash
-# unit tests
-$ pnpm run test
+pnpm install
 
-# e2e tests
-$ pnpm run test:e2e
+# Prisma client
+pnpm run prisma:generate
 
-# test coverage
-$ pnpm run test:cov
+# DB migrate (dev)
+pnpm run prisma:migrate
+
+# API (watch)
+pnpm run start:dev
 ```
 
-## Deployment
+The API runs at `http://localhost:4000` by default (depending on `PORT`).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## API Reference
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+All successful HTTP responses follow a consistent envelope:
+
+```json
+{ "success": true, "data": {} }
+```
+
+Swagger UI: `http://localhost:<PORT>/api`
+
+### Auth — `/auth`
+
+| Method | Path                  | Auth   | Description                              |
+| ------ | --------------------- | ------ | ---------------------------------------- |
+| `POST` | `/auth/register`      | Public | Register (email + password)              |
+| `POST` | `/auth/login`         | Public | Login (JWT access token + refresh token) |
+| `POST` | `/auth/refresh-token` | Public | Rotate tokens using refresh token        |
+| `GET`  | `/auth/me`            | JWT    | Current user (via JWT strategy)          |
+
+### Quizzes — `/quizzes`
+
+| Method   | Path                                         | Auth | Description                      |
+| -------- | -------------------------------------------- | ---- | -------------------------------- |
+| `POST`   | `/quizzes`                                   | JWT  | Create a quiz                    |
+| `GET`    | `/quizzes`                                   | JWT  | List the user’s quizzes          |
+| `GET`    | `/quizzes/:id`                               | JWT  | Quiz details                     |
+| `PUT`    | `/quizzes/:id`                               | JWT  | Update a quiz                    |
+| `DELETE` | `/quizzes/:id`                               | JWT  | Delete a quiz                    |
+| `POST`   | `/quizzes/:id/questions`                     | JWT  | Add a question to a quiz         |
+| `PUT`    | `/quizzes/:id/questions/:questionId`         | JWT  | Update a question                |
+| `PUT`    | `/quizzes/:id/questions/:questionId/options` | JWT  | Update question options          |
+| `DELETE` | `/quizzes/:id/questions/:questionId`         | JWT  | Delete a question                |
+
+### Games — `/games`
+
+| Method | Path                  | Auth | Description                        |
+| ------ | --------------------- | ---- | ---------------------------------- |
+| `POST` | `/games`              | JWT  | Create a game from a quiz (generates a PIN) |
+| `GET`  | `/games`              | JWT  | List the user’s games                       |
+| `GET`  | `/games/finished`     | JWT  | List finished games                         |
+| `GET`  | `/games/finished/:id` | JWT  | Finished game details                       |
+| `GET`  | `/games/:pin`         | JWT  | Game state (host only)                      |
+
+## WebSocket API
+
+Namespace: `/game`
+
+Connect with JWT:
+
+```ts
+io('http://localhost:4000/game', { auth: { token: '<accessToken>' } });
+```
+
+Note: Host events require JWT (`WsGuard`). Player join/answer events are managed based on the room state.
+
+### Client → Server events
+
+| Event                | Auth   | Payload                        |
+| -------------------- | ------ | ------------------------------ |
+| `host:join-game`     | JWT    | `{ pin }`                      |
+| `host:start-game`    | JWT    | `{ pin }`                      |
+| `host:end-game`      | JWT    | `{ pin }`                      |
+| `host:next-question` | JWT    | `{ pin }`                      |
+| `player:join`        | Public | `{ pin, nickname, playerId? }` |
+| `player:answer`      | Public | `{ pin, answerId }`            |
+
+### Server → Client events (selected)
+
+| Event            | Payload                     | When?                        |
+| ---------------- | --------------------------- | ---------------------------- |
+| `player:joined`  | `{ nickname, playerCount }` | When a player joins the room |
+| `game:starting`  | `{ countdown }`             | When the host starts the game |
+| `question:start` | (question state)            | When a question starts (BullMQ job) |
+| `question:end`   | (review state)              | When time expires / job completes |
+| `game:ended`     | (summary)                   | When the game ends           |
+
+## Architecture Decisions
+
+### Why Redis?
+
+Redis holds the “hot path” game state in this project:
+
+- **Game room state**: `game:{pin}` hash (status, index, timestamps, etc.)
+- **Players**: `game:{pin}:players`, `:nicknames`, `:scores`, `:sockets`
+- **Reconnect safety**: server-issued `playerId` is validated via Redis
+
+This avoids hitting the DB on every WebSocket event and enables fast validation and fanout.
+
+### Why BullMQ?
+
+The game flow has time-based steps like countdowns and question deadlines. Doing this with in-process `setTimeout` risks losing state on restart/crash. BullMQ provides:
+
+- **Delayed jobs** for deterministic scheduling
+- **Retry/backoff** for resilience to transient failures
+- Jobs stored in Redis, so they can be managed **after restarts**
+
+In this project, the `game` queue processes `next-question`, `end-question`, `end-game`, and `clear-game` jobs.
+
+### Why WebSocket (Socket.IO)?
+
+During a game, we need to broadcast events to all clients in the same room, such as:
+
+- “game is starting”
+- “question started/ended”
+- “score updated”
+
+Socket.IO is used to push these events **instantly**. The room model is `game:{pin}`.
+
+## Scripts
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run start:dev
+pnpm run build
+pnpm run start:prod
+
+pnpm run prisma:generate
+pnpm run prisma:migrate
+pnpm run prisma:migrate:deploy
+pnpm run prisma:studio
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
