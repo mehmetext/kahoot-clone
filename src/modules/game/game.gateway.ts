@@ -331,6 +331,8 @@ export class GameGateway implements OnGatewayConnection {
       [client.id]: playerId!,
     });
 
+    const players = await this.redis.hgetall(`game:${payload.pin}:players`);
+
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
       playerCount: isReconnecting ? playerCount : playerCount + 1,
@@ -339,11 +341,17 @@ export class GameGateway implements OnGatewayConnection {
     this.logger.log(
       `player joined (pin=${payload.pin}, socketId=${client.id}, playerId=${playerId!}, reconnect=${isReconnecting})`,
     );
+
     return {
       success: true,
       data: {
         playerId: playerId!,
         playerCount: isReconnecting ? playerCount : playerCount + 1,
+        players: Object.values(players),
+        game: {
+          name: game.name,
+          status: game.status,
+        },
       },
     };
   }
