@@ -137,6 +137,8 @@ export class GameProcessor extends WorkerHost {
       game.currentQuestionIndex
     ].options.find((option) => option.isCorrect)?.id;
 
+    await this.redis.del(`game:${data.pin}:current-question-started-at`);
+
     const currentQuestionScores =
       await this.gameService.getCurrentQuestionScores(data.pin);
 
