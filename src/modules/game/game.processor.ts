@@ -12,7 +12,10 @@ import { ClearGamePayload } from './dtos/clear-game.payload';
 import { NextQuestionPayload } from './dtos/next-question.payload';
 import { QuestionStartPayload } from './dtos/question-start.payload';
 import { GameStatus } from './enums/game-status.enum';
-import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
+import {
+  GAME_COUNTDOWN_SECONDS,
+  QUESTION_END_TIME_LIMIT_IN_SECONDS,
+} from './game.constants';
 import { GameGateway } from './game.gateway';
 import { GameService } from './game.service';
 
@@ -39,6 +42,9 @@ export class GameProcessor extends WorkerHost {
         break;
       case 'end-question':
         await this.endQuestion(job.data as { pin: string });
+        break;
+      case 'end-game':
+        await this.endGame(job.data as { pin: string });
         break;
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
@@ -164,15 +170,27 @@ export class GameProcessor extends WorkerHost {
     const isLastQuestion =
       game.currentQuestionIndex + 1 === game.questions.length;
 
+    this.gameGateway.server.to(`game:${data.pin}`).emit('question:end', {
+      correctAnswerId,
+      currentQuestionScores,
+      top5,
+    });
+
     if (isLastQuestion) {
-      await this.gameService.endGame(data.pin);
-    } else {
-      this.gameGateway.server.to(`game:${data.pin}`).emit('question:end', {
-        correctAnswerId,
-        currentQuestionScores,
-        top5,
-      });
+      await this.gameQueue.add(
+        'end-game',
+        { pin: data.pin },
+        {
+          delay: GAME_COUNTDOWN_SECONDS * 1000,
+          jobId: `end-game-${data.pin}`,
+          removeOnComplete: true,
+        },
+      );
     }
+  }
+
+  async endGame(data: { pin: string }): Promise<void> {
+    await this.gameService.endGame(data.pin);
   }
 
   @OnWorkerEvent('active')
