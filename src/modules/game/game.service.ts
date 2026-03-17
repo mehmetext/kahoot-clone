@@ -153,7 +153,13 @@ export class GameService {
 
     const results = await redisPipeline.exec();
 
-    if (!results) {
+    if (
+      !results ||
+      (results.length === 1 &&
+        results[0][0] === null &&
+        results[0][1] &&
+        Object.keys(results[0][1]).length === 0)
+    ) {
       return [];
     }
 
