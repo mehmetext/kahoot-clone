@@ -239,10 +239,10 @@ export class GameGateway implements OnGatewayConnection {
 
   @SubscribeMessage('player:answer')
   async handlePlayerAnswer(
-    @MessageBody() payload: { pin: string; answer: string },
+    @MessageBody() payload: { pin: string; answerId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    if (!payload || !payload.pin || !payload.answer) {
+    if (!payload || !payload.pin || !payload.answerId) {
       return { success: false, message: 'Pin and answer are required' };
     }
 
@@ -262,7 +262,7 @@ export class GameGateway implements OnGatewayConnection {
       (option) => option.isCorrect,
     )?.id;
 
-    const isCorrect = correctAnswerId === payload.answer;
+    const isCorrect = correctAnswerId === payload.answerId;
 
     const playerId = await this.redis.hget(
       `game:${payload.pin}:sockets`,
