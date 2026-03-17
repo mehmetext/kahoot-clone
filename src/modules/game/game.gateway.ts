@@ -54,8 +54,6 @@ export class GameGateway implements OnGatewayConnection {
   private async cleanupSocketFromGames(client: Socket) {
     const rooms = Array.from(client.rooms ?? []);
 
-    console.log(rooms);
-
     for (const room of rooms) {
       if (room.startsWith('game:')) {
         const pin = room.split(':')[1];
