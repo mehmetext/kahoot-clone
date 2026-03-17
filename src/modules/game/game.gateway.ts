@@ -1,6 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { forwardRef, Inject, UseGuards } from '@nestjs/common';
+import { forwardRef, Inject, UseFilters, UseGuards } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -12,6 +12,7 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { WsUser } from 'src/shared/decorators/ws-user.decorator';
+import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsGuard } from 'src/shared/guards/ws.guard';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { GameStatus } from './enums/game-status.enum';
@@ -19,6 +20,7 @@ import { GAME_COUNTDOWN_SECONDS } from './game.constants';
 import { GameService } from './game.service';
 
 @WebSocketGateway({ namespace: 'game' })
+@UseFilters(WsExceptionFilter)
 export class GameGateway {
   @WebSocketServer()
   server: Server;
