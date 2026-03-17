@@ -9,8 +9,8 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { ClearGamePayload } from './dtos/clear-game.payload';
-import { NextQuestionPayload } from './dtos/next-question.payload';
 import { QuestionStartPayload } from './dtos/question:start.payload';
+import { StartQuestionPayload } from './dtos/start-question.payload';
 import { GameStatus } from './enums/game-status.enum';
 import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
 import { GameGateway } from './game.gateway';
@@ -37,8 +37,8 @@ export class GameProcessor extends WorkerHost {
       case 'start-game':
         await this.startGame(job.data as { pin: string });
         break;
-      case 'next-question':
-        await this.nextQuestion(job.data as NextQuestionPayload);
+      case 'start-question':
+        await this.startQuestion(job.data as StartQuestionPayload);
         break;
     }
   }
@@ -74,14 +74,14 @@ export class GameProcessor extends WorkerHost {
       status: GameStatus.ACTIVE,
     });
 
-    const nextQuestionPayload: NextQuestionPayload = { pin };
-    await this.gameQueue.add('next-question', nextQuestionPayload, {
-      jobId: `next-question-${pin}`,
+    const startQuestionPayload: StartQuestionPayload = { pin };
+    await this.gameQueue.add('start-question', startQuestionPayload, {
+      jobId: `start-question-${pin}`,
       removeOnComplete: true,
     });
   }
 
-  async nextQuestion(data: NextQuestionPayload): Promise<void> {
+  async startQuestion(data: StartQuestionPayload): Promise<void> {
     const game = await this.gameService.getGame(data.pin);
 
     if (!game) {
