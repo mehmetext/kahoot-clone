@@ -26,10 +26,10 @@ import { GameGateway } from './game.gateway';
 export class GameService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(forwardRef(() => GameGateway))
     @InjectRedis()
     private readonly redis: Redis,
     @InjectQueue('game') private gameQueue: Queue,
+    @Inject(forwardRef(() => GameGateway))
     private readonly gameGateway: GameGateway,
   ) {}
 
