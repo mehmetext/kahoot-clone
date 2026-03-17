@@ -168,6 +168,6 @@ export class GameGateway {
       },
     );
 
-    return { success: true, message: 'Question started' };
+    return { success: true, message: 'The next question is starting' };
   }
 }
