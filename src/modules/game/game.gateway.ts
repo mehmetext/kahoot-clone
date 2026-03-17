@@ -256,14 +256,6 @@ export class GameGateway implements OnGatewayConnection {
       return { success: false, message: 'The game is not active' };
     }
 
-    const currentQuestion = game.questions[game.currentQuestionIndex];
-
-    const correctAnswerId = currentQuestion.options.find(
-      (option) => option.isCorrect,
-    )?.id;
-
-    const isCorrect = correctAnswerId === payload.answerId;
-
     const playerId = await this.redis.hget(
       `game:${payload.pin}:sockets`,
       client.id,
@@ -272,6 +264,26 @@ export class GameGateway implements OnGatewayConnection {
     if (!playerId) {
       return { success: false, message: 'Player not found' };
     }
+
+    const isAnswered = await this.redis.hget(
+      `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
+      playerId,
+    );
+
+    if (isAnswered) {
+      return {
+        success: false,
+        message: 'The player has already answered the question',
+      };
+    }
+
+    const currentQuestion = game.questions[game.currentQuestionIndex];
+
+    const correctAnswerId = currentQuestion.options.find(
+      (option) => option.isCorrect,
+    )?.id;
+
+    const isCorrect = correctAnswerId === payload.answerId;
 
     if (isCorrect) {
       const score = calculateScore(
@@ -289,6 +301,10 @@ export class GameGateway implements OnGatewayConnection {
         score,
         playerId,
       );
+      redisPipeline.hset(
+        `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
+        { [playerId]: payload.answerId },
+      );
       await redisPipeline.exec();
     } else {
       const redisPipeline = this.redis.pipeline();
@@ -297,6 +313,10 @@ export class GameGateway implements OnGatewayConnection {
         `game:${payload.pin}:current-question-scores`,
         0,
         playerId,
+      );
+      redisPipeline.hset(
+        `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
+        { [playerId]: payload.answerId },
       );
       await redisPipeline.exec();
     }
