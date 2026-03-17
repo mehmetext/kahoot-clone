@@ -1,5 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
+import { randomUUID } from 'crypto';
 import {
   forwardRef,
   Inject,
@@ -171,23 +172,38 @@ export class GameGateway implements OnGatewayConnection {
 
   @SubscribeMessage('player:join')
   async handlePlayerJoin(
-    @MessageBody() payload: { pin: string; nickname: string; playerId: string },
+    @MessageBody()
+    payload: { pin: string; nickname: string; playerId?: string },
     @ConnectedSocket() client: Socket,
   ) {
+    if (!payload?.pin || !payload?.nickname) {
+      return { success: false, message: 'Pin and nickname are required' };
+    }
+
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
       return { success: false, message: 'Game not found' };
     }
 
-    const existingPlayerId = await this.redis.hget(
-      `game:${payload.pin}:players`,
-      payload.playerId,
-    );
-
     const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
 
-    if (!existingPlayerId) {
+    let playerId: string;
+    let isReconnecting = false;
+
+    // Verify reconnection: playerId must exist in the server-issued hash
+    if (payload.playerId) {
+      const existingNickname = await this.redis.hget(
+        `game:${payload.pin}:players`,
+        payload.playerId,
+      );
+      if (existingNickname) {
+        playerId = payload.playerId;
+        isReconnecting = true;
+      }
+    }
+
+    if (!isReconnecting) {
       if (game.status !== GameStatus.WAITING) {
         return { success: false, message: 'Game is not waiting' };
       }
@@ -202,13 +218,15 @@ export class GameGateway implements OnGatewayConnection {
       );
 
       if (existingNickname) {
-        return { success: false, message: 'The player is already in the game' };
+        return { success: false, message: 'Nickname is already taken' };
       }
+
+      playerId = randomUUID();
 
       const redisPipeline = this.redis.pipeline();
 
       redisPipeline.hset(`game:${payload.pin}:players`, {
-        [payload.playerId]: payload.nickname,
+        [playerId]: payload.nickname,
       });
       redisPipeline.sadd(`game:${payload.pin}:nicknames`, payload.nickname);
 
@@ -218,18 +236,19 @@ export class GameGateway implements OnGatewayConnection {
     await client.join(`game:${payload.pin}`);
 
     await this.redis.hset(`game:${payload.pin}:sockets`, {
-      [client.id]: payload.playerId,
+      [client.id]: playerId!,
     });
 
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
-      playerCount: existingPlayerId ? playerCount : playerCount + 1,
+      playerCount: isReconnecting ? playerCount : playerCount + 1,
     });
 
     return {
       success: true,
       data: {
-        playerCount: existingPlayerId ? playerCount : playerCount + 1,
+        playerId: playerId!,
+        playerCount: isReconnecting ? playerCount : playerCount + 1,
       },
     };
   }
