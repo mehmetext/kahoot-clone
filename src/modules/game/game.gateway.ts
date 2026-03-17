@@ -86,6 +86,10 @@ export class GameGateway {
     @MessageBody() payload: { pin: string },
     @WsUser() user: UserResponseDto,
   ) {
+    if (!payload || !payload.pin) {
+      return { success: false, message: 'Pin is required' };
+    }
+
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {

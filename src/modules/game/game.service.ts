@@ -278,16 +278,14 @@ export class GameService {
   }
 
   async endGame(pin: string): Promise<void> {
-    await this.redis.hset(`game:${pin}`, {
-      status: GameStatus.ENDED,
-    });
+    await this.redis.hset(`game:${pin}`, { status: GameStatus.ENDED });
 
-    await this.gameQueue.remove(`start-game-${pin}`);
-    await this.gameQueue.remove(`end-question-${pin}`);
-
-    await this.redis.hset(`game:${pin}`, {
-      status: GameStatus.ENDED,
-    });
+    // Stop any scheduled game progression/cleanup jobs for this pin.
+    await Promise.all([
+      this.gameQueue.remove(`next-question-${pin}`),
+      this.gameQueue.remove(`end-question-${pin}`),
+      this.gameQueue.remove(`clear-game-${pin}`),
+    ]);
 
     const leaderboard = await this.getLeaderboard(pin);
 
