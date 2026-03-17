@@ -138,6 +138,7 @@ export class GameService {
       hostId: userId,
       status: GameStatus.WAITING,
       currentQuestionIndex: 0,
+      currentQuestionStartedAt: null,
       startedAt: null,
     };
   }
@@ -181,6 +182,9 @@ export class GameService {
         hostId: game.hostId,
         status: game.status as GameStatus,
         currentQuestionIndex: Number(game.currentQuestionIndex),
+        currentQuestionStartedAt: game.currentQuestionStartedAt
+          ? new Date(game.currentQuestionStartedAt)
+          : null,
         startedAt: game.startedAt ? new Date(game.startedAt) : null,
       };
 
@@ -210,6 +214,9 @@ export class GameService {
       hostId: game.hostId,
       status: game.status as GameStatus,
       currentQuestionIndex: Number(game.currentQuestionIndex),
+      currentQuestionStartedAt: game.currentQuestionStartedAt
+        ? new Date(game.currentQuestionStartedAt)
+        : null,
       startedAt: game.startedAt ? new Date(game.startedAt) : null,
     };
   }

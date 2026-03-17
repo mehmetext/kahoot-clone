@@ -21,9 +21,13 @@ import { Server, Socket } from 'socket.io';
 import { WsUser } from 'src/shared/decorators/ws-user.decorator';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsGuard } from 'src/shared/guards/ws.guard';
+import { calculateScore } from 'src/shared/utils/ calculate-score';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { GameStatus } from './enums/game-status.enum';
-import { GAME_COUNTDOWN_SECONDS } from './game.constants';
+import {
+  GAME_COUNTDOWN_SECONDS,
+  QUESTION_END_TIME_LIMIT_IN_SECONDS,
+} from './game.constants';
 import { GameService } from './game.service';
 
 @WebSocketGateway({ namespace: 'game' })
@@ -270,10 +274,33 @@ export class GameGateway implements OnGatewayConnection {
     }
 
     if (isCorrect) {
-      await this.redis.zincrby(`game:${payload.pin}:scores`, 1, playerId);
-      return { success: true, message: 'The answer is correct' };
+      const score = calculateScore(
+        new Date().getTime(),
+        new Date(game.currentQuestionStartedAt!).getTime(),
+        currentQuestion.timeLimitInSeconds ??
+          QUESTION_END_TIME_LIMIT_IN_SECONDS,
+        isCorrect,
+      );
+
+      const redisPipeline = this.redis.pipeline();
+      redisPipeline.zincrby(`game:${payload.pin}:scores`, score, playerId);
+      redisPipeline.zincrby(
+        `game:${payload.pin}:current-question-scores`,
+        score,
+        playerId,
+      );
+      await redisPipeline.exec();
     } else {
-      return { success: false, message: 'The answer is incorrect' };
+      const redisPipeline = this.redis.pipeline();
+      redisPipeline.zincrby(`game:${payload.pin}:scores`, 0, playerId);
+      redisPipeline.zincrby(
+        `game:${payload.pin}:current-question-scores`,
+        0,
+        playerId,
+      );
+      await redisPipeline.exec();
     }
+
+    return { success: true, message: 'The answer is received' };
   }
 }

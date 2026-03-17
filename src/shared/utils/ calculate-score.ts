@@ -1,0 +1,16 @@
+export function calculateScore(
+  answeredAt: number,
+  questionStartedAt: number,
+  timeLimit: number,
+  isCorrect: boolean,
+): number {
+  if (!isCorrect) return 0;
+
+  const elapsed = (answeredAt - questionStartedAt) / 1000;
+  const ratio = elapsed / timeLimit;
+
+  const maxScore = 1000;
+  const minScore = 500;
+
+  return Math.round(maxScore - ratio * (maxScore - minScore));
+}

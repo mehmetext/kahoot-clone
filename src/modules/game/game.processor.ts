@@ -86,10 +86,9 @@ export class GameProcessor extends WorkerHost {
     });
 
     await this.redis.del(`game:${data.pin}:current-question-scores`);
-    await this.redis.set(
-      `game:${data.pin}:current-question-started-at`,
-      new Date().toISOString(),
-    );
+    await this.redis.hset(`game:${data.pin}`, {
+      currentQuestionStartedAt: new Date().toISOString(),
+    });
 
     const timeLimitInSeconds =
       game.questions[game.currentQuestionIndex].timeLimitInSeconds ??

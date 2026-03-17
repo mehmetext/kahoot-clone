@@ -99,6 +99,12 @@ export class GameResponseDto {
   currentQuestionIndex: number;
 
   @ApiProperty({
+    description: 'The current question started at of the game',
+    example: '2026-03-16T16:45:10.000Z',
+  })
+  currentQuestionStartedAt: Date | null;
+
+  @ApiProperty({
     description: 'The started at of the game',
     example: '2026-03-16T16:45:10.000Z',
   })
