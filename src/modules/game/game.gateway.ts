@@ -1,9 +1,16 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { forwardRef, Inject, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Logger,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -21,7 +28,9 @@ import { GameService } from './game.service';
 
 @WebSocketGateway({ namespace: 'game' })
 @UseFilters(WsExceptionFilter)
-export class GameGateway {
+export class GameGateway implements OnGatewayConnection {
+  private readonly logger = new Logger(GameGateway.name);
+
   @WebSocketServer()
   server: Server;
 
@@ -31,6 +40,25 @@ export class GameGateway {
     @InjectRedis() private readonly redis: Redis,
     @InjectQueue('game') private readonly gameQueue: Queue,
   ) {}
+
+  handleConnection(client: Socket) {
+    client.on('disconnecting', async () => {
+      await this.cleanupSocketFromGames(client);
+    });
+  }
+
+  private async cleanupSocketFromGames(client: Socket) {
+    const rooms = Array.from(client.rooms ?? []);
+
+    console.log(rooms);
+
+    for (const room of rooms) {
+      if (room.startsWith('game:')) {
+        const pin = room.split(':')[1];
+        await this.redis.hdel(`game:${pin}:sockets`, client.id);
+      }
+    }
+  }
 
   @UseGuards(WsGuard)
   @SubscribeMessage('host:start-game')
@@ -152,6 +180,10 @@ export class GameGateway {
 
     await client.join(`game:${payload.pin}`);
 
+    await this.redis.hset(`game:${payload.pin}:sockets`, {
+      [client.id]: payload.playerId,
+    });
+
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
       playerCount: existingPlayerId ? playerCount : playerCount + 1,
@@ -228,12 +260,17 @@ export class GameGateway {
 
     const isCorrect = correctAnswerId === payload.answer;
 
+    const playerId = await this.redis.hget(
+      `game:${payload.pin}:sockets`,
+      client.id,
+    );
+
+    if (!playerId) {
+      return { success: false, message: 'Player not found' };
+    }
+
     if (isCorrect) {
-      /* await this.redis.zincrby(
-        `game:${payload.pin}:scores`,
-        1,
-        payload.playerId,
-      ); */
+      await this.redis.zincrby(`game:${payload.pin}:scores`, 1, playerId);
       return { success: true, message: 'The answer is correct' };
     } else {
       return { success: false, message: 'The answer is incorrect' };
