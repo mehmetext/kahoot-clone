@@ -102,7 +102,9 @@ export class GameProcessor extends WorkerHost {
     const game = await this.gameService.getGame(data.pin);
 
     if (!game) {
-      this.logger.warn(`nextQuestion rejected (reason=game_not_found, pin=${data.pin})`);
+      this.logger.warn(
+        `nextQuestion rejected (reason=game_not_found, pin=${data.pin})`,
+      );
       throw new NotFoundException('Game not found');
     }
 
@@ -168,7 +170,9 @@ export class GameProcessor extends WorkerHost {
     this.logger.log(`endQuestion started (pin=${data.pin})`);
     const game = await this.gameService.getGame(data.pin);
     if (!game) {
-      this.logger.warn(`endQuestion rejected (reason=game_not_found, pin=${data.pin})`);
+      this.logger.warn(
+        `endQuestion rejected (reason=game_not_found, pin=${data.pin})`,
+      );
       throw new NotFoundException('Game not found');
     }
 
