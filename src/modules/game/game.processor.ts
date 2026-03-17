@@ -83,10 +83,6 @@ export class GameProcessor extends WorkerHost {
       throw new NotFoundException('Game not found');
     }
 
-    await this.redis.hset(`game:${pin}`, {
-      status: GameStatus.ACTIVE,
-    });
-
     const nextQuestionPayload: NextQuestionPayload = { pin };
     await this.gameQueue.add('next-question', nextQuestionPayload, {
       jobId: `next-question-${pin}`,
