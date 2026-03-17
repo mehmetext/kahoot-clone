@@ -1,6 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -93,20 +93,17 @@ export class GameGateway {
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
-      throw new NotFoundException('Game not found');
+      return { success: false, message: 'Game not found' };
     }
 
     if (game.status !== GameStatus.WAITING) {
-      throw new BadRequestException('Game is not waiting');
+      return { success: false, message: 'Game is not waiting' };
     }
 
     const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
 
     if (playerCount > 99) {
-      this.server.to(`game:${payload.pin}`).emit('error', {
-        message: 'The game is full',
-      });
-      return;
+      return { success: false, message: 'The game is full' };
     }
 
     const existingPlayerId = await this.redis.hget(
@@ -120,10 +117,7 @@ export class GameGateway {
     );
 
     if (existingPlayerId || existingNickname) {
-      this.server.to(`game:${payload.pin}`).emit('error', {
-        message: 'The player is already in the game',
-      });
-      return;
+      return { success: false, message: 'The player is already in the game' };
     }
 
     const redisPipeline = this.redis.pipeline();
@@ -139,5 +133,12 @@ export class GameGateway {
       nickname: payload.nickname,
       playerCount: playerCount + 1,
     });
+
+    return {
+      success: true,
+      data: {
+        playerCount: playerCount + 1,
+      },
+    };
   }
 }
