@@ -345,8 +345,10 @@ export class GameService {
     });
   }
 
-  async getFinishedGames(): Promise<FinishedGameResponseDto[]> {
-    const finishedGames = await this.prisma.game.findMany();
+  async getFinishedGames(userId: string): Promise<FinishedGameResponseDto[]> {
+    const finishedGames = await this.prisma.game.findMany({
+      where: { hostId: userId },
+    });
 
     return finishedGames.map((game) => ({
       ...game,
@@ -356,9 +358,10 @@ export class GameService {
 
   async getFinishedGameById(
     id: string,
+    userId: string,
   ): Promise<FinishedGameResponseDto | null> {
     const finishedGame = await this.prisma.game.findUnique({
-      where: { id },
+      where: { id, hostId: userId },
     });
 
     if (!finishedGame) {

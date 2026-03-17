@@ -166,6 +166,10 @@ export class GameGateway implements OnGatewayConnection {
       return { success: false, message: 'You are not the host of this game' };
     }
 
+    if (game.status === GameStatus.ENDED) {
+      return { success: false, message: 'Game is already ended' };
+    }
+
     await this.gameService.endGame(payload.pin);
     return { success: true, message: 'Game ended' };
   }
@@ -341,41 +345,25 @@ export class GameGateway implements OnGatewayConnection {
 
     const isCorrect = correctAnswerId === payload.answerId;
 
-    if (isCorrect) {
-      const score = calculateScore(
-        new Date().getTime(),
-        new Date(game.currentQuestionStartedAt!).getTime(),
-        currentQuestion.timeLimitInSeconds ??
-          QUESTION_END_TIME_LIMIT_IN_SECONDS,
-        isCorrect,
-      );
+    const score = calculateScore(
+      new Date().getTime(),
+      new Date(game.currentQuestionStartedAt!).getTime(),
+      currentQuestion.timeLimitInSeconds ?? QUESTION_END_TIME_LIMIT_IN_SECONDS,
+      isCorrect,
+    );
 
-      const redisPipeline = this.redis.pipeline();
-      redisPipeline.zincrby(`game:${payload.pin}:scores`, score, playerId);
-      redisPipeline.zincrby(
-        `game:${payload.pin}:current-question-scores`,
-        score,
-        playerId,
-      );
-      redisPipeline.hset(
-        `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
-        { [playerId]: payload.answerId },
-      );
-      await redisPipeline.exec();
-    } else {
-      const redisPipeline = this.redis.pipeline();
-      redisPipeline.zincrby(`game:${payload.pin}:scores`, 0, playerId);
-      redisPipeline.zincrby(
-        `game:${payload.pin}:current-question-scores`,
-        0,
-        playerId,
-      );
-      redisPipeline.hset(
-        `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
-        { [playerId]: payload.answerId },
-      );
-      await redisPipeline.exec();
-    }
+    const redisPipeline = this.redis.pipeline();
+    redisPipeline.zincrby(`game:${payload.pin}:scores`, score, playerId);
+    redisPipeline.zincrby(
+      `game:${payload.pin}:current-question-scores`,
+      score,
+      playerId,
+    );
+    redisPipeline.hset(
+      `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
+      { [playerId]: payload.answerId },
+    );
+    await redisPipeline.exec();
 
     return { success: true, message: 'The answer is received' };
   }

@@ -48,8 +48,10 @@ export class GameController {
   @ApiOkResponseGeneric(FinishedGameResponseDto, { isArray: true })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  async getFinishedGames(): Promise<FinishedGameResponseDto[]> {
-    const finishedGames = await this.gameService.getFinishedGames();
+  async getFinishedGames(
+    @CurrentUser() user: UserResponseDto,
+  ): Promise<FinishedGameResponseDto[]> {
+    const finishedGames = await this.gameService.getFinishedGames(user.id);
     return finishedGames;
   }
 
@@ -59,8 +61,12 @@ export class GameController {
   @UseGuards(AuthGuard('jwt'))
   async getFinishedGame(
     @Param('id') id: string,
+    @CurrentUser() user: UserResponseDto,
   ): Promise<FinishedGameResponseDto> {
-    const finishedGame = await this.gameService.getFinishedGameById(id);
+    const finishedGame = await this.gameService.getFinishedGameById(
+      id,
+      user.id,
+    );
     if (!finishedGame) {
       throw new NotFoundException('Finished game not found');
     }

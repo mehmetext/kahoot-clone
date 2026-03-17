@@ -40,6 +40,8 @@ export class GameProcessor extends WorkerHost {
       case 'end-question':
         await this.endQuestion(job.data as { pin: string });
         break;
+      default:
+        this.logger.warn(`Unknown job name: ${job.name}`);
     }
   }
 
@@ -87,14 +89,13 @@ export class GameProcessor extends WorkerHost {
       throw new NotFoundException('Game not found');
     }
 
-    await this.redis.hset(`game:${data.pin}`, {
+    const initPipeline = this.redis.pipeline();
+    initPipeline.hset(`game:${data.pin}`, {
       status: GameStatus.ACTIVE,
-    });
-
-    await this.redis.del(`game:${data.pin}:current-question-scores`);
-    await this.redis.hset(`game:${data.pin}`, {
       currentQuestionStartedAt: new Date().toISOString(),
     });
+    initPipeline.del(`game:${data.pin}:current-question-scores`);
+    await initPipeline.exec();
 
     const timeLimitInSeconds =
       game.questions[game.currentQuestionIndex].timeLimitInSeconds ??
