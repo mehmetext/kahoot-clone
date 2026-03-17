@@ -1,6 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { forwardRef, Inject } from '@nestjs/common';
+import { forwardRef, Inject, UseGuards } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -11,11 +11,14 @@ import {
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
+import { WsUser } from 'src/shared/decorators/ws-user.decorator';
+import { WsGuard } from 'src/shared/guards/ws.guard';
+import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { GameStatus } from './enums/game-status.enum';
 import { GAME_COUNTDOWN_SECONDS } from './game.constants';
 import { GameService } from './game.service';
 
-@WebSocketGateway(80, { namespace: 'game' })
+@WebSocketGateway({ namespace: 'game' })
 export class GameGateway {
   @WebSocketServer()
   server: Server;
@@ -27,8 +30,12 @@ export class GameGateway {
     @InjectQueue('game') private readonly gameQueue: Queue,
   ) {}
 
+  @UseGuards(WsGuard)
   @SubscribeMessage('host:start-game')
-  async handleHostStartGame(@MessageBody() payload: { pin: string }) {
+  async handleHostStartGame(
+    @MessageBody() payload: { pin: string },
+    @WsUser() user: UserResponseDto,
+  ) {
     if (!payload || !payload.pin) {
       return { success: false, message: 'Pin is required' };
     }
@@ -37,6 +44,10 @@ export class GameGateway {
 
     if (!game) {
       return { success: false, message: 'Game not found' };
+    }
+
+    if (game.hostId !== user.id) {
+      return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status !== GameStatus.WAITING) {
@@ -67,8 +78,22 @@ export class GameGateway {
     return { success: true, message: 'Game started' };
   }
 
+  @UseGuards(WsGuard)
   @SubscribeMessage('host:end-game')
-  async handleHostEndGame(@MessageBody() payload: { pin: string }) {
+  async handleHostEndGame(
+    @MessageBody() payload: { pin: string },
+    @WsUser() user: UserResponseDto,
+  ) {
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    if (game.hostId !== user.id) {
+      return { success: false, message: 'You are not the host of this game' };
+    }
+
     await this.gameService.endGame(payload.pin);
     return { success: true, message: 'Game ended' };
   }
@@ -134,12 +159,20 @@ export class GameGateway {
     };
   }
 
+  @UseGuards(WsGuard)
   @SubscribeMessage('host:next-question')
-  async handleHostNextQuestion(@MessageBody() payload: { pin: string }) {
+  async handleHostNextQuestion(
+    @MessageBody() payload: { pin: string },
+    @WsUser() user: UserResponseDto,
+  ) {
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
       return { success: false, message: 'Game not found' };
+    }
+
+    if (game.hostId !== user.id) {
+      return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status !== GameStatus.REVIEWING) {
