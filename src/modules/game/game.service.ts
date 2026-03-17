@@ -216,4 +216,44 @@ export class GameService {
 
     return leaderboard;
   }
+
+  async getCurrentQuestionScores(
+    pin: string,
+  ): Promise<LeaderboardItemResponseDto[]> {
+    const [currentQuestionScoresInRedis, players] = await Promise.all([
+      this.redis.zrange(
+        `game:${pin}:current-question-scores`,
+        0,
+        -1,
+        'WITHSCORES',
+      ),
+      this.redis.hgetall(`game:${pin}:players`),
+    ]);
+
+    const scoreByPlayerId: Record<string, number> = {};
+    const scoredPlayerIdsInOrder: string[] = [];
+
+    for (let i = 0; i < currentQuestionScoresInRedis.length; i += 2) {
+      const playerId = currentQuestionScoresInRedis[i];
+      const score = Number(currentQuestionScoresInRedis[i + 1]);
+      scoreByPlayerId[playerId] = score;
+      scoredPlayerIdsInOrder.push(playerId);
+    }
+
+    const scoredPlayerIdSet = new Set(scoredPlayerIdsInOrder);
+    const missingPlayerIds = Object.keys(players).filter(
+      (playerId) => !scoredPlayerIdSet.has(playerId),
+    );
+
+    const currentQuestionScores: LeaderboardItemResponseDto[] = [
+      ...scoredPlayerIdsInOrder,
+      ...missingPlayerIds,
+    ].map((playerId) => ({
+      playerId,
+      score: scoreByPlayerId[playerId] ?? 0,
+      nickname: players[playerId] ?? null,
+    }));
+
+    return currentQuestionScores;
+  }
 }

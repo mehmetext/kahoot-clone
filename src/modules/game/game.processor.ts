@@ -124,6 +124,33 @@ export class GameProcessor extends WorkerHost {
     );
   }
 
+  async endQuestion(data: { pin: string }): Promise<void> {
+    const game = await this.gameService.getGame(data.pin);
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
+
+    await this.redis.hset(`game:${data.pin}`, {
+      status: GameStatus.REVIEWING,
+    });
+
+    const correctAnswerId = game.questions[
+      game.currentQuestionIndex
+    ].options.find((option) => option.isCorrect)?.id;
+
+    const currentQuestionScores =
+      await this.gameService.getCurrentQuestionScores(data.pin);
+
+    const leaderboard = await this.gameService.getLeaderboard(data.pin);
+    const top5 = leaderboard.slice(0, 5);
+
+    this.gameGateway.server.to(`game:${data.pin}`).emit('question:end', {
+      correctAnswerId,
+      currentQuestionScores,
+      top5,
+    });
+  }
+
   @OnWorkerEvent('active')
   onActive(job: Job) {
     this.logger.debug(`Job ${job.id} is active`);
