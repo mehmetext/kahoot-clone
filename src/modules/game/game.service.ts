@@ -2,6 +2,8 @@ import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,13 +20,17 @@ import {
 } from './dtos/game-response.dto';
 import { LeaderboardItemResponseDto } from './dtos/leaderboard-item.dto';
 import { GameStatus } from './enums/game-status.enum';
+import { GameGateway } from './game.gateway';
 
 @Injectable()
 export class GameService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectRedis() private readonly redis: Redis,
+    @Inject(forwardRef(() => GameGateway))
+    @InjectRedis()
+    private readonly redis: Redis,
     @InjectQueue('game') private gameQueue: Queue,
+    private readonly gameGateway: GameGateway,
   ) {}
 
   async createGame(
@@ -255,5 +261,24 @@ export class GameService {
     }));
 
     return currentQuestionScores;
+  }
+
+  async endGame(pin: string): Promise<void> {
+    await this.redis.hset(`game:${pin}`, {
+      status: GameStatus.ENDED,
+    });
+
+    await this.gameQueue.remove(`start-game-${pin}`);
+    await this.gameQueue.remove(`end-question-${pin}`);
+
+    await this.redis.hset(`game:${pin}`, {
+      status: GameStatus.ENDED,
+    });
+
+    const leaderboard = await this.getLeaderboard(pin);
+
+    this.gameGateway.server.to(`game:${pin}`).emit('game:ended', {
+      leaderboard,
+    });
   }
 }

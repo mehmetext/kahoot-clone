@@ -1,6 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -20,6 +20,7 @@ export class GameGateway {
   server: Server;
 
   constructor(
+    @Inject(forwardRef(() => GameService))
     private readonly gameService: GameService,
     @InjectRedis() private readonly redis: Redis,
     @InjectQueue('game') private readonly gameQueue: Queue,
@@ -67,24 +68,8 @@ export class GameGateway {
 
   @SubscribeMessage('host:end-game')
   async handleHostEndGame(@MessageBody() payload: { pin: string }) {
-    const game = await this.gameService.getGame(payload.pin);
-
-    if (!game) {
-      throw new NotFoundException('Game not found');
-    }
-
-    await this.gameQueue.remove(`start-game-${payload.pin}`);
-    await this.gameQueue.remove(`end-question-${payload.pin}`);
-
-    await this.redis.hset(`game:${payload.pin}`, {
-      status: GameStatus.ENDED,
-    });
-
-    const leaderboard = await this.gameService.getLeaderboard(payload.pin);
-
-    this.server.to(`game:${payload.pin}`).emit('game:ended', {
-      leaderboard,
-    });
+    await this.gameService.endGame(payload.pin);
+    return { success: true, message: 'Game ended' };
   }
 
   @SubscribeMessage('player:join')

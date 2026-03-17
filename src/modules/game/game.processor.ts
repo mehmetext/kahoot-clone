@@ -12,10 +12,7 @@ import { ClearGamePayload } from './dtos/clear-game.payload';
 import { NextQuestionPayload } from './dtos/next-question.payload';
 import { QuestionStartPayload } from './dtos/question:start.payload';
 import { GameStatus } from './enums/game-status.enum';
-import {
-  GAME_COUNTDOWN_SECONDS,
-  QUESTION_END_TIME_LIMIT_IN_SECONDS,
-} from './game.constants';
+import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
 import { GameGateway } from './game.gateway';
 import { GameService } from './game.service';
 
@@ -139,25 +136,17 @@ export class GameProcessor extends WorkerHost {
     const leaderboard = await this.gameService.getLeaderboard(data.pin);
     const top5 = leaderboard.slice(0, 5);
 
-    this.gameGateway.server.to(`game:${data.pin}`).emit('question:end', {
-      correctAnswerId,
-      currentQuestionScores,
-      top5,
-    });
-
     const isLastQuestion =
       game.currentQuestionIndex + 1 === game.questions.length;
 
     if (isLastQuestion) {
-      await this.gameQueue.add(
-        'end-game',
-        { pin: data.pin },
-        {
-          delay: GAME_COUNTDOWN_SECONDS * 1000,
-          jobId: `end-game-${data.pin}`,
-          removeOnComplete: true,
-        },
-      );
+      await this.gameService.endGame(data.pin);
+    } else {
+      this.gameGateway.server.to(`game:${data.pin}`).emit('question:end', {
+        correctAnswerId,
+        currentQuestionScores,
+        top5,
+      });
     }
   }
 
