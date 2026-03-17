@@ -56,9 +56,22 @@ export class GameProcessor extends WorkerHost {
 
     redisPipeline.srem(`games`, pin);
     redisPipeline.srem(`user:${game.hostId}:games`, pin);
-    redisPipeline.del(`game:${pin}`);
+    redisPipeline.del(
+      `game:${pin}`,
+      `game:${pin}:players`,
+      `game:${pin}:nicknames`,
+      `game:${pin}:scores`,
+      `game:${pin}:current-question-scores`,
+    );
 
     await redisPipeline.exec();
+
+    await Promise.all([
+      this.gameQueue.remove(`clear-game-${pin}`),
+      this.gameQueue.remove(`start-game-${pin}`),
+      this.gameQueue.remove(`end-question-${pin}`),
+      this.gameQueue.remove(`next-question-${pin}`),
+    ]);
   }
 
   async startGame(data: { pin: string }): Promise<void> {
