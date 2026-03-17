@@ -37,6 +37,9 @@ export class GameProcessor extends WorkerHost {
       case 'next-question':
         await this.nextQuestion(job.data as NextQuestionPayload);
         break;
+      case 'end-question':
+        await this.endQuestion(job.data as { pin: string });
+        break;
     }
   }
 

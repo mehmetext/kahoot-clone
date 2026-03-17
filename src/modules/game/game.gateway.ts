@@ -142,7 +142,7 @@ export class GameGateway {
       return { success: false, message: 'Game not found' };
     }
 
-    if (game.status !== GameStatus.ACTIVE) {
+    if (game.status !== GameStatus.REVIEWING) {
       return { success: false, message: 'The game is not active' };
     }
 
