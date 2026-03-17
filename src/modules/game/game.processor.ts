@@ -33,6 +33,10 @@ export class GameProcessor extends WorkerHost {
   }
 
   async process(job: Job<unknown, unknown, string>): Promise<void> {
+    const pin = (job.data as { pin?: string } | undefined)?.pin;
+    this.logger.debug(
+      `process job (name=${job.name}, id=${job.id}, pin=${pin ?? 'n/a'})`,
+    );
     switch (job.name) {
       case 'clear-game':
         await this.clearGame(job.data as ClearGamePayload);
@@ -53,6 +57,7 @@ export class GameProcessor extends WorkerHost {
 
   async clearGame(data: ClearGamePayload): Promise<void> {
     const { pin } = data;
+    this.logger.log(`clearGame started (pin=${pin})`);
 
     const game = await this.gameService.getGame(pin);
 
@@ -86,12 +91,18 @@ export class GameProcessor extends WorkerHost {
       this.gameQueue.remove(`end-question-${pin}`),
       this.gameQueue.remove(`next-question-${pin}`),
     ]);
+
+    this.logger.log(
+      `clearGame completed (pin=${pin}, hostId=${game.hostId}, questionCount=${game.questionCount})`,
+    );
   }
 
   async nextQuestion(data: NextQuestionPayload): Promise<void> {
+    this.logger.log(`nextQuestion started (pin=${data.pin})`);
     const game = await this.gameService.getGame(data.pin);
 
     if (!game) {
+      this.logger.warn(`nextQuestion rejected (reason=game_not_found, pin=${data.pin})`);
       throw new NotFoundException('Game not found');
     }
 
@@ -118,6 +129,9 @@ export class GameProcessor extends WorkerHost {
       game.questions[game.currentQuestionIndex].timeLimitInSeconds ??
       QUESTION_END_TIME_LIMIT_IN_SECONDS;
 
+    this.logger.log(
+      `nextQuestion emitting question:start (pin=${data.pin}, qIndex=${game.currentQuestionIndex}, timeLimitSeconds=${timeLimitInSeconds})`,
+    );
     const questionStartPayload: QuestionStartPayload = {
       text: game.questions[game.currentQuestionIndex].title,
       answers: game.questions[game.currentQuestionIndex].options.map(
@@ -144,11 +158,17 @@ export class GameProcessor extends WorkerHost {
         delay: timeLimitInSeconds * 1000,
       },
     );
+
+    this.logger.debug(
+      `nextQuestion scheduled end-question (pin=${data.pin}, delayMs=${timeLimitInSeconds * 1000})`,
+    );
   }
 
   async endQuestion(data: { pin: string }): Promise<void> {
+    this.logger.log(`endQuestion started (pin=${data.pin})`);
     const game = await this.gameService.getGame(data.pin);
     if (!game) {
+      this.logger.warn(`endQuestion rejected (reason=game_not_found, pin=${data.pin})`);
       throw new NotFoundException('Game not found');
     }
 
@@ -176,6 +196,10 @@ export class GameProcessor extends WorkerHost {
       top5,
     });
 
+    this.logger.log(
+      `endQuestion emitted question:end (pin=${data.pin}, qIndex=${game.currentQuestionIndex}, isLast=${isLastQuestion})`,
+    );
+
     if (isLastQuestion) {
       await this.gameQueue.add(
         'end-game',
@@ -186,25 +210,40 @@ export class GameProcessor extends WorkerHost {
           removeOnComplete: true,
         },
       );
+
+      this.logger.debug(
+        `endQuestion scheduled end-game (pin=${data.pin}, delayMs=${GAME_COUNTDOWN_SECONDS * 1000})`,
+      );
     }
   }
 
   async endGame(data: { pin: string }): Promise<void> {
+    this.logger.log(`endGame job started (pin=${data.pin})`);
     await this.gameService.endGame(data.pin);
   }
 
   @OnWorkerEvent('active')
   onActive(job: Job) {
-    this.logger.debug(`Job ${job.id} is active`);
+    const pin = (job.data as { pin?: string } | undefined)?.pin;
+    this.logger.debug(
+      `job active (name=${job.name}, id=${job.id}, pin=${pin ?? 'n/a'})`,
+    );
   }
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    this.logger.log(`Job ${job.id} completed`);
+    const pin = (job.data as { pin?: string } | undefined)?.pin;
+    this.logger.log(
+      `job completed (name=${job.name}, id=${job.id}, pin=${pin ?? 'n/a'})`,
+    );
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} failed: ${error.message}`);
+    const pin = (job.data as { pin?: string } | undefined)?.pin;
+    this.logger.error(
+      `job failed (name=${job.name}, id=${job.id}, pin=${pin ?? 'n/a'}): ${error.message}`,
+      error.stack,
+    );
   }
 }

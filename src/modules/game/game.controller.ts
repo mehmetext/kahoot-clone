@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -20,6 +21,8 @@ import { GameService } from './game.service';
 
 @Controller('games')
 export class GameController {
+  private readonly logger = new Logger(GameController.name);
+
   constructor(private readonly gameService: GameService) {}
 
   @Post()
@@ -30,7 +33,13 @@ export class GameController {
     @Body() createGameDto: CreateGameDto,
     @CurrentUser() user: UserResponseDto,
   ): Promise<GameResponseDto> {
+    this.logger.log(
+      `POST /games (userId=${user.id}, quizId=${createGameDto.quizId})`,
+    );
     const game = await this.gameService.createGame(createGameDto, user.id);
+    this.logger.log(
+      `POST /games created (userId=${user.id}, pin=${game.pin}, questionCount=${game.questionCount})`,
+    );
     return game;
   }
 
@@ -41,6 +50,7 @@ export class GameController {
   async getGamesByUserId(
     @CurrentUser() user: UserResponseDto,
   ): Promise<GameResponseDto[]> {
+    this.logger.debug(`GET /games (userId=${user.id})`);
     const games = await this.gameService.getGamesByUserId(user.id);
     return games;
   }
@@ -52,6 +62,7 @@ export class GameController {
   async getFinishedGames(
     @CurrentUser() user: UserResponseDto,
   ): Promise<FinishedGameResponseDto[]> {
+    this.logger.debug(`GET /games/finished (userId=${user.id})`);
     const finishedGames = await this.gameService.getFinishedGames(user.id);
     return finishedGames;
   }
@@ -64,6 +75,7 @@ export class GameController {
     @Param('id') id: string,
     @CurrentUser() user: UserResponseDto,
   ): Promise<FinishedGameResponseDto> {
+    this.logger.debug(`GET /games/finished/:id (id=${id}, userId=${user.id})`);
     const finishedGame = await this.gameService.getFinishedGameById(
       id,
       user.id,
@@ -82,6 +94,7 @@ export class GameController {
     @Param('pin') pin: string,
     @CurrentUser() user: UserResponseDto,
   ): Promise<GameResponseDto> {
+    this.logger.debug(`GET /games/:pin (pin=${pin}, userId=${user.id})`);
     const game = await this.gameService.getGame(pin);
     if (!game) {
       throw new NotFoundException('Game not found');

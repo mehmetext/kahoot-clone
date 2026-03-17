@@ -5,6 +5,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
@@ -26,6 +27,8 @@ import { GameGateway } from './game.gateway';
 
 @Injectable()
 export class GameService {
+  private readonly logger = new Logger(GameService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @InjectRedis()
@@ -39,6 +42,9 @@ export class GameService {
     createGameDto: CreateGameDto,
     userId: string,
   ): Promise<GameResponseDto> {
+    this.logger.log(
+      `createGame requested (userId=${userId}, quizId=${createGameDto.quizId})`,
+    );
     const quiz = await this.prisma.quiz.findUnique({
       where: {
         id: createGameDto.quizId,
@@ -52,10 +58,16 @@ export class GameService {
     });
 
     if (!quiz) {
+      this.logger.warn(
+        `createGame rejected (reason=quiz_not_found, userId=${userId}, quizId=${createGameDto.quizId})`,
+      );
       throw new NotFoundException('Quiz not found');
     }
 
     if (quiz.questions.length === 0) {
+      this.logger.warn(
+        `createGame rejected (reason=no_questions, userId=${userId}, quizId=${createGameDto.quizId})`,
+      );
       throw new BadRequestException('Quiz has no questions');
     }
 
@@ -75,11 +87,17 @@ export class GameService {
     }
 
     if (isGameExists) {
+      this.logger.error(
+        `createGame failed (reason=pin_collision, userId=${userId}, quizId=${createGameDto.quizId}, attempts=${maxAttempts})`,
+      );
       throw new BadRequestException(
         'Could not generate a unique pin after 5 attempts',
       );
     }
 
+    this.logger.log(
+      `createGame creating (pin=${pin!}, userId=${userId}, quizId=${createGameDto.quizId}, questionCount=${quiz.questions.length})`,
+    );
     const redisPipeline = this.redis.pipeline();
 
     redisPipeline.sadd(`games`, pin!);
@@ -123,6 +141,10 @@ export class GameService {
       },
     });
 
+    this.logger.debug(
+      `createGame scheduled clear-game (pin=${pin!}, delayMs=${1000 * 60 * 60 * 2})`,
+    );
+
     return {
       pin: pin!,
       name: quiz.name,
@@ -150,6 +172,7 @@ export class GameService {
   }
 
   async getGamesByUserId(userId: string) {
+    this.logger.debug(`getGamesByUserId (userId=${userId})`);
     const gamePins = await this.redis.smembers(`user:${userId}:games`);
 
     if (gamePins.length === 0) {
@@ -204,12 +227,16 @@ export class GameService {
 
     if (stalePins.length > 0) {
       await this.redis.srem(`user:${userId}:games`, ...stalePins);
+      this.logger.warn(
+        `getGamesByUserId cleaned stale pins (userId=${userId}, staleCount=${stalePins.length})`,
+      );
     }
 
     return games;
   }
 
   async getGame(pin: string): Promise<GameResponseDto | null> {
+    this.logger.debug(`getGame (pin=${pin})`);
     const game = await this.redis.hgetall(`game:${pin}`);
 
     if (!game || Object.keys(game).length === 0) {
@@ -239,6 +266,7 @@ export class GameService {
   }
 
   async getLeaderboard(pin: string): Promise<LeaderboardItemResponseDto[]> {
+    this.logger.debug(`getLeaderboard (pin=${pin})`);
     const [leaderboardInRedis, players] = await Promise.all([
       this.redis.zrange(`game:${pin}:scores`, 0, -1, 'REV', 'WITHSCORES'),
       this.redis.hgetall(`game:${pin}:players`),
@@ -264,6 +292,7 @@ export class GameService {
   async getCurrentQuestionScores(
     pin: string,
   ): Promise<LeaderboardItemResponseDto[]> {
+    this.logger.debug(`getCurrentQuestionScores (pin=${pin})`);
     const [currentQuestionScoresInRedis, players] = await Promise.all([
       this.redis.zrange(
         `game:${pin}:current-question-scores`,
@@ -303,13 +332,20 @@ export class GameService {
   }
 
   async endGame(pin: string): Promise<void> {
+    this.logger.log(`endGame requested (pin=${pin})`);
     const game = await this.getGame(pin);
 
     if (!game || game.status === GameStatus.ENDED) {
+      this.logger.warn(
+        `endGame skipped (pin=${pin}, reason=${!game ? 'game_not_found' : 'already_ended'})`,
+      );
       return;
     }
 
     await this.redis.hset(`game:${pin}`, { status: GameStatus.ENDED });
+    this.logger.log(
+      `endGame status updated (pin=${pin}, hostId=${game.hostId})`,
+    );
 
     // Stop any scheduled game progression/cleanup jobs for this pin.
     await Promise.all([
@@ -324,6 +360,9 @@ export class GameService {
     this.gameGateway.server.to(`game:${pin}`).emit('game:ended', {
       leaderboard,
     });
+    this.logger.debug(
+      `endGame emitted game:ended (pin=${pin}, leaderboardSize=${leaderboard.length})`,
+    );
 
     await this.prisma.game.create({
       data: {
@@ -337,6 +376,9 @@ export class GameService {
         })),
       },
     });
+    this.logger.log(
+      `endGame persisted results (pin=${pin}, hostId=${game.hostId}, quizId=${game.quizId})`,
+    );
 
     const clearGamePayload: ClearGamePayload = { pin };
     await this.gameQueue.add('clear-game', clearGamePayload, {
@@ -349,9 +391,13 @@ export class GameService {
         delay: 1000 * 60, // 1 minute
       },
     });
+    this.logger.debug(
+      `endGame scheduled clear-game (pin=${pin}, delayMs=${CLEAR_GAME_DELAY_AFTER_END_MS})`,
+    );
   }
 
   async getFinishedGames(userId: string): Promise<FinishedGameResponseDto[]> {
+    this.logger.debug(`getFinishedGames (userId=${userId})`);
     const finishedGames = await this.prisma.game.findMany({
       where: { hostId: userId },
     });
@@ -366,6 +412,7 @@ export class GameService {
     id: string,
     userId: string,
   ): Promise<FinishedGameResponseDto | null> {
+    this.logger.debug(`getFinishedGameById (id=${id}, userId=${userId})`);
     const finishedGame = await this.prisma.game.findFirst({
       where: { id, hostId: userId },
     });

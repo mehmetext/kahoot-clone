@@ -54,7 +54,11 @@ export class GameGateway implements OnGatewayConnection {
   ) {}
 
   handleConnection(client: Socket) {
+    this.logger.debug(`socket connected (socketId=${client.id})`);
     client.on('disconnecting', async () => {
+      this.logger.debug(
+        `socket disconnecting (socketId=${client.id}, rooms=${Array.from(client.rooms ?? []).join(',')})`,
+      );
       await this.cleanupSocketFromGames(client);
     });
   }
@@ -65,6 +69,9 @@ export class GameGateway implements OnGatewayConnection {
     for (const room of rooms) {
       if (room.startsWith('game:')) {
         const pin = room.split(':')[1];
+        this.logger.debug(
+          `cleanup socket mapping (pin=${pin}, socketId=${client.id})`,
+        );
         await this.redis.hdel(`game:${pin}:sockets`, client.id);
       }
     }
@@ -78,24 +85,39 @@ export class GameGateway implements OnGatewayConnection {
     @WsUser() user: UserResponseDto,
   ) {
     if (!payload?.pin) {
+      this.logger.warn(
+        `host:join-game rejected (reason=missing_pin, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'Pin is required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `host:join-game rejected (reason=game_not_found, pin=${payload.pin}, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
     if (game.hostId !== user.id) {
+      this.logger.warn(
+        `host:join-game rejected (reason=not_host, pin=${payload.pin}, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status === GameStatus.ENDED) {
+      this.logger.warn(
+        `host:join-game rejected (reason=already_ended, pin=${payload.pin}, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game is already ended' };
     }
 
     await client.join(`game:${payload.pin}`);
+    this.logger.log(
+      `host joined room (pin=${payload.pin}, socketId=${client.id}, userId=${user.id}, status=${game.status})`,
+    );
 
     await this.redis.hset(`game:${payload.pin}:sockets`, {
       [client.id]: user.id,
@@ -117,20 +139,32 @@ export class GameGateway implements OnGatewayConnection {
     @WsUser() user: UserResponseDto,
   ) {
     if (!payload || !payload.pin) {
+      this.logger.warn(
+        `host:start-game rejected (reason=missing_pin, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'Pin is required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `host:start-game rejected (reason=game_not_found, pin=${payload.pin}, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
     if (game.hostId !== user.id) {
+      this.logger.warn(
+        `host:start-game rejected (reason=not_host, pin=${payload.pin}, socketId=${client.id}, userId=${user.id})`,
+      );
       return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status !== GameStatus.WAITING) {
+      this.logger.warn(
+        `host:start-game rejected (reason=invalid_status, pin=${payload.pin}, socketId=${client.id}, userId=${user.id}, status=${game.status})`,
+      );
       return { success: false, message: 'Game is not waiting' };
     }
 
@@ -140,6 +174,9 @@ export class GameGateway implements OnGatewayConnection {
     });
 
     await this.gameQueue.remove(`clear-game-${payload.pin}`);
+    this.logger.log(
+      `game starting scheduled (pin=${payload.pin}, socketId=${client.id}, userId=${user.id}, countdown=${GAME_COUNTDOWN_SECONDS})`,
+    );
 
     await this.redis.hset(`game:${payload.pin}`, {
       status: GameStatus.STARTING,
@@ -170,23 +207,36 @@ export class GameGateway implements OnGatewayConnection {
     @WsUser() user: UserResponseDto,
   ) {
     if (!payload || !payload.pin) {
+      this.logger.warn(
+        `host:end-game rejected (reason=missing_pin, userId=${user.id})`,
+      );
       return { success: false, message: 'Pin is required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `host:end-game rejected (reason=game_not_found, pin=${payload.pin}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
     if (game.hostId !== user.id) {
+      this.logger.warn(
+        `host:end-game rejected (reason=not_host, pin=${payload.pin}, userId=${user.id})`,
+      );
       return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status === GameStatus.ENDED) {
+      this.logger.warn(
+        `host:end-game rejected (reason=already_ended, pin=${payload.pin}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game is already ended' };
     }
 
+    this.logger.log(`host ending game (pin=${payload.pin}, userId=${user.id})`);
     await this.gameService.endGame(payload.pin);
     return { success: true, message: 'Game ended' };
   }
@@ -198,12 +248,18 @@ export class GameGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
   ) {
     if (!payload?.pin || !payload?.nickname) {
+      this.logger.warn(
+        `player:join rejected (reason=missing_fields, socketId=${client.id}, pin=${payload?.pin ?? 'null'})`,
+      );
       return { success: false, message: 'Pin and nickname are required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `player:join rejected (reason=game_not_found, pin=${payload.pin}, socketId=${client.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
@@ -220,6 +276,9 @@ export class GameGateway implements OnGatewayConnection {
       );
       if (existingNickname) {
         if (existingNickname !== payload.nickname) {
+          this.logger.warn(
+            `player:join rejected (reason=nickname_mismatch, pin=${payload.pin}, socketId=${client.id}, playerId=${payload.playerId})`,
+          );
           return {
             success: false,
             message: 'Nickname does not match this playerId',
@@ -232,10 +291,16 @@ export class GameGateway implements OnGatewayConnection {
 
     if (!isReconnecting) {
       if (game.status !== GameStatus.WAITING) {
+        this.logger.warn(
+          `player:join rejected (reason=invalid_status, pin=${payload.pin}, socketId=${client.id}, status=${game.status})`,
+        );
         return { success: false, message: 'Game is not waiting' };
       }
 
       if (playerCount > 99) {
+        this.logger.warn(
+          `player:join rejected (reason=game_full, pin=${payload.pin}, socketId=${client.id})`,
+        );
         return { success: false, message: 'The game is full' };
       }
 
@@ -253,6 +318,9 @@ export class GameGateway implements OnGatewayConnection {
 
       if (saddResult !== 1) {
         await this.redis.hdel(`game:${payload.pin}:players`, playerId);
+        this.logger.warn(
+          `player:join rejected (reason=nickname_taken, pin=${payload.pin}, socketId=${client.id}, nickname=${payload.nickname})`,
+        );
         return { success: false, message: 'Nickname is already taken' };
       }
     }
@@ -268,6 +336,9 @@ export class GameGateway implements OnGatewayConnection {
       playerCount: isReconnecting ? playerCount : playerCount + 1,
     });
 
+    this.logger.log(
+      `player joined (pin=${payload.pin}, socketId=${client.id}, playerId=${playerId!}, reconnect=${isReconnecting})`,
+    );
     return {
       success: true,
       data: {
@@ -284,24 +355,39 @@ export class GameGateway implements OnGatewayConnection {
     @WsUser() user: UserResponseDto,
   ) {
     if (!payload || !payload.pin) {
+      this.logger.warn(
+        `host:next-question rejected (reason=missing_pin, userId=${user.id})`,
+      );
       return { success: false, message: 'Pin is required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `host:next-question rejected (reason=game_not_found, pin=${payload.pin}, userId=${user.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
     if (game.hostId !== user.id) {
+      this.logger.warn(
+        `host:next-question rejected (reason=not_host, pin=${payload.pin}, userId=${user.id})`,
+      );
       return { success: false, message: 'You are not the host of this game' };
     }
 
     if (game.status !== GameStatus.REVIEWING) {
+      this.logger.warn(
+        `host:next-question rejected (reason=invalid_status, pin=${payload.pin}, userId=${user.id}, status=${game.status})`,
+      );
       return { success: false, message: 'The game is not active' };
     }
 
     if (game.currentQuestionIndex + 1 >= game.questions.length) {
+      this.logger.warn(
+        `host:next-question rejected (reason=no_more_questions, pin=${payload.pin}, userId=${user.id}, index=${game.currentQuestionIndex}, total=${game.questions.length})`,
+      );
       return { success: false, message: 'No more questions' };
     }
 
@@ -318,6 +404,9 @@ export class GameGateway implements OnGatewayConnection {
       },
     );
 
+    this.logger.log(
+      `next question requested (pin=${payload.pin}, userId=${user.id}, fromIndex=${game.currentQuestionIndex})`,
+    );
     return { success: true, message: 'The next question is starting' };
   }
 
@@ -327,16 +416,25 @@ export class GameGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
   ) {
     if (!payload || !payload.pin || !payload.answerId) {
+      this.logger.warn(
+        `player:answer rejected (reason=missing_fields, socketId=${client.id}, pin=${payload?.pin ?? 'null'})`,
+      );
       return { success: false, message: 'Pin and answer are required' };
     }
 
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
+      this.logger.warn(
+        `player:answer rejected (reason=game_not_found, pin=${payload.pin}, socketId=${client.id})`,
+      );
       return { success: false, message: 'Game not found' };
     }
 
     if (game.status !== GameStatus.ACTIVE) {
+      this.logger.warn(
+        `player:answer rejected (reason=invalid_status, pin=${payload.pin}, socketId=${client.id}, status=${game.status})`,
+      );
       return { success: false, message: 'The game is not active' };
     }
 
@@ -346,6 +444,9 @@ export class GameGateway implements OnGatewayConnection {
     );
 
     if (!playerId) {
+      this.logger.warn(
+        `player:answer rejected (reason=socket_not_mapped, pin=${payload.pin}, socketId=${client.id})`,
+      );
       return { success: false, message: 'Player not found' };
     }
 
@@ -354,6 +455,9 @@ export class GameGateway implements OnGatewayConnection {
       playerId,
     );
     if (!playerNickname) {
+      this.logger.warn(
+        `player:answer rejected (reason=player_missing, pin=${payload.pin}, socketId=${client.id}, playerId=${playerId})`,
+      );
       return { success: false, message: 'Player not found' };
     }
 
@@ -363,6 +467,9 @@ export class GameGateway implements OnGatewayConnection {
     );
 
     if (isAnswered) {
+      this.logger.warn(
+        `player:answer rejected (reason=already_answered, pin=${payload.pin}, playerId=${playerId}, qIndex=${game.currentQuestionIndex})`,
+      );
       return {
         success: false,
         message: 'The player has already answered the question',
@@ -376,6 +483,9 @@ export class GameGateway implements OnGatewayConnection {
     );
 
     if (!isValidOption) {
+      this.logger.warn(
+        `player:answer rejected (reason=invalid_option, pin=${payload.pin}, playerId=${playerId}, qIndex=${game.currentQuestionIndex}, answerId=${payload.answerId})`,
+      );
       return { success: false, message: 'Invalid answer option' };
     }
 
@@ -405,12 +515,18 @@ export class GameGateway implements OnGatewayConnection {
     );
     await redisPipeline.exec();
 
+    this.logger.debug(
+      `player answered (pin=${payload.pin}, playerId=${playerId}, qIndex=${game.currentQuestionIndex}, correct=${isCorrect}, score=${score})`,
+    );
     const answeredCount = await this.redis.hlen(
       `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
     );
     const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
 
     if (answeredCount === playerCount) {
+      this.logger.log(
+        `all players answered; ending question early (pin=${payload.pin}, qIndex=${game.currentQuestionIndex}, answered=${answeredCount})`,
+      );
       await this.gameQueue.remove(`end-question-${payload.pin}`);
       await this.gameQueue.add(
         'end-question',
