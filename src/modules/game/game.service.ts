@@ -166,13 +166,17 @@ export class GameService {
     return results.map((result, index) => {
       const game = result[1] as Record<string, string>;
 
+      const questions = game.questions
+        ? (JSON.parse(
+            game.questions as unknown as string,
+          ) as GameQuestionResponseDto[])
+        : [];
+
       const gameResponseDto: GameResponseDto = {
         pin: gamePins[index],
         name: game.name,
         questionCount: Number(game.questionCount),
-        questions: JSON.parse(
-          game.questions as unknown as string,
-        ) as GameQuestionResponseDto[],
+        questions: questions,
         quizId: game.quizId,
         hostId: game.hostId,
         status: game.status as GameStatus,
@@ -191,13 +195,17 @@ export class GameService {
       return null;
     }
 
+    const questions = game.questions
+      ? (JSON.parse(
+          game.questions as unknown as string,
+        ) as GameQuestionResponseDto[])
+      : [];
+
     return {
       pin,
       name: game.name,
       questionCount: Number(game.questionCount),
-      questions: JSON.parse(
-        game.questions as unknown as string,
-      ) as GameQuestionResponseDto[],
+      questions: questions,
       quizId: game.quizId,
       hostId: game.hostId,
       status: game.status as GameStatus,
