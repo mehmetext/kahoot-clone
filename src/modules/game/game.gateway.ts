@@ -200,4 +200,43 @@ export class GameGateway {
 
     return { success: true, message: 'The next question is starting' };
   }
+
+  @SubscribeMessage('player:answer')
+  async handlePlayerAnswer(
+    @MessageBody() payload: { pin: string; answer: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!payload || !payload.pin || !payload.answer) {
+      return { success: false, message: 'Pin and answer are required' };
+    }
+
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    if (game.status !== GameStatus.ACTIVE) {
+      return { success: false, message: 'The game is not active' };
+    }
+
+    const currentQuestion = game.questions[game.currentQuestionIndex];
+
+    const correctAnswerId = currentQuestion.options.find(
+      (option) => option.isCorrect,
+    )?.id;
+
+    const isCorrect = correctAnswerId === payload.answer;
+
+    if (isCorrect) {
+      /* await this.redis.zincrby(
+        `game:${payload.pin}:scores`,
+        1,
+        payload.playerId,
+      ); */
+      return { success: true, message: 'The answer is correct' };
+    } else {
+      return { success: false, message: 'The answer is incorrect' };
+    }
+  }
 }
