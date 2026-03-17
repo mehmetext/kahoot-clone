@@ -14,6 +14,7 @@ import { generateRandomPin } from 'src/shared/utils/generate-pin';
 import { QuestionOptionResponseDto } from '../quiz/dtos/question-response.dto';
 import { ClearGamePayload } from './dtos/clear-game.payload';
 import { CreateGameDto } from './dtos/create-game.dto';
+import { FinishedGameResponseDto } from './dtos/finished-game-response.dto';
 import {
   GameQuestionResponseDto,
   GameResponseDto,
@@ -318,5 +319,32 @@ export class GameService {
         })),
       },
     });
+  }
+
+  async getFinishedGames(): Promise<FinishedGameResponseDto[]> {
+    const finishedGames = await this.prisma.game.findMany();
+
+    return finishedGames.map((game) => ({
+      ...game,
+      leaderboard: game.leaderboard as unknown as LeaderboardItemResponseDto[],
+    }));
+  }
+
+  async getFinishedGameById(
+    id: string,
+  ): Promise<FinishedGameResponseDto | null> {
+    const finishedGame = await this.prisma.game.findUnique({
+      where: { id },
+    });
+
+    if (!finishedGame) {
+      return null;
+    }
+
+    return {
+      ...finishedGame,
+      leaderboard:
+        finishedGame.leaderboard as unknown as LeaderboardItemResponseDto[],
+    };
   }
 }
