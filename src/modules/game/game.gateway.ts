@@ -74,6 +74,7 @@ export class GameGateway {
     }
 
     await this.gameQueue.remove(`start-game-${payload.pin}`);
+    await this.gameQueue.remove(`end-question-${payload.pin}`);
 
     await this.redis.hset(`game:${payload.pin}`, {
       status: GameStatus.ENDED,
@@ -140,5 +141,33 @@ export class GameGateway {
         playerCount: playerCount + 1,
       },
     };
+  }
+
+  @SubscribeMessage('host:next-question')
+  async handleHostNextQuestion(@MessageBody() payload: { pin: string }) {
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    if (game.status !== GameStatus.ACTIVE) {
+      return { success: false, message: 'The game is not active' };
+    }
+
+    /* Increment the current question index */
+    await this.redis.hincrby(`game:${payload.pin}`, 'currentQuestionIndex', 1);
+
+    /* Start the next question */
+    await this.gameQueue.add(
+      'next-question',
+      { pin: payload.pin },
+      {
+        jobId: `start-question-${payload.pin}`,
+        removeOnComplete: true,
+      },
+    );
+
+    return { success: true, message: 'Question started' };
   }
 }
