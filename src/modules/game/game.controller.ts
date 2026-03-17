@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { ApiOkResponseGeneric } from 'src/shared/decorators/api-ok-response-generic.decorator';
@@ -40,6 +48,9 @@ export class GameController {
   @ApiBearerAuth()
   async getGame(@Param('pin') pin: string): Promise<GameResponseDto> {
     const game = await this.gameService.getGame(pin);
+    if (!game) {
+      throw new NotFoundException('Game not found');
+    }
     return game;
   }
 }

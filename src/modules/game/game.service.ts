@@ -172,10 +172,11 @@ export class GameService {
     });
   }
 
-  async getGame(pin: string): Promise<GameResponseDto> {
+  async getGame(pin: string): Promise<GameResponseDto | null> {
     const game = await this.redis.hgetall(`game:${pin}`);
-    if (!game) {
-      throw new NotFoundException('Game not found');
+
+    if (!game || Object.keys(game).length === 0) {
+      return null;
     }
 
     return {

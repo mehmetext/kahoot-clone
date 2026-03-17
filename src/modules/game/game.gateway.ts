@@ -27,14 +27,18 @@ export class GameGateway {
 
   @SubscribeMessage('host:start-game')
   async handleHostStartGame(@MessageBody() payload: { pin: string }) {
+    if (!payload || !payload.pin) {
+      return { success: false, message: 'Pin is required' };
+    }
+
     const game = await this.gameService.getGame(payload.pin);
 
     if (!game) {
-      throw new NotFoundException('Game not found');
+      return { success: false, message: 'Game not found' };
     }
 
     if (game.status !== GameStatus.WAITING) {
-      throw new BadRequestException('Game is not waiting');
+      return { success: false, message: 'Game is not waiting' };
     }
 
     await this.gameQueue.remove(`clear-game-${payload.pin}`);
@@ -57,6 +61,8 @@ export class GameGateway {
     this.server.to(`game:${payload.pin}`).emit('game:starting', {
       countdown: GAME_COUNTDOWN_SECONDS,
     });
+
+    return { success: true, message: 'Game started' };
   }
 
   async handleHostEndGame(@MessageBody() payload: { pin: string }) {
