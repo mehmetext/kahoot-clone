@@ -47,6 +47,7 @@ export class GameController {
   @Get('finished')
   @ApiOkResponseGeneric(FinishedGameResponseDto, { isArray: true })
   @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   async getFinishedGames(): Promise<FinishedGameResponseDto[]> {
     const finishedGames = await this.gameService.getFinishedGames();
     return finishedGames;
@@ -55,6 +56,7 @@ export class GameController {
   @Get('finished/:id')
   @ApiOkResponseGeneric(FinishedGameResponseDto)
   @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   async getFinishedGame(
     @Param('id') id: string,
   ): Promise<FinishedGameResponseDto> {
@@ -68,6 +70,7 @@ export class GameController {
   @Get(':pin')
   @ApiOkResponseGeneric(GameResponseDto)
   @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
   async getGame(@Param('pin') pin: string): Promise<GameResponseDto> {
     const game = await this.gameService.getGame(pin);
     if (!game) {
