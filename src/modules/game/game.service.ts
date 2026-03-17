@@ -269,6 +269,7 @@ export class GameService {
         `game:${pin}:current-question-scores`,
         0,
         -1,
+        'REV',
         'WITHSCORES',
       ),
       this.redis.hgetall(`game:${pin}:players`),
