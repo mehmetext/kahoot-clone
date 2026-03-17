@@ -339,6 +339,14 @@ export class GameGateway implements OnGatewayConnection {
 
     const currentQuestion = game.questions[game.currentQuestionIndex];
 
+    const isValidOption = currentQuestion.options.some(
+      (option) => option.id === payload.answerId,
+    );
+
+    if (!isValidOption) {
+      return { success: false, message: 'Invalid answer option' };
+    }
+
     const correctAnswerId = currentQuestion.options.find(
       (option) => option.isCorrect,
     )?.id;

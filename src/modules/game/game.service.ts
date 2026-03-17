@@ -55,6 +55,10 @@ export class GameService {
       throw new NotFoundException('Quiz not found');
     }
 
+    if (quiz.questions.length === 0) {
+      throw new BadRequestException('Quiz has no questions');
+    }
+
     let pin: string;
     let attempt = 0;
     const maxAttempts = 5;
@@ -300,7 +304,7 @@ export class GameService {
   async endGame(pin: string): Promise<void> {
     const game = await this.getGame(pin);
 
-    if (!game) {
+    if (!game || game.status === GameStatus.ENDED) {
       return;
     }
 

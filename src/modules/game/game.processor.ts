@@ -10,7 +10,7 @@ import { Job, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { ClearGamePayload } from './dtos/clear-game.payload';
 import { NextQuestionPayload } from './dtos/next-question.payload';
-import { QuestionStartPayload } from './dtos/question:start.payload';
+import { QuestionStartPayload } from './dtos/question-start.payload';
 import { GameStatus } from './enums/game-status.enum';
 import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
 import { GameGateway } from './game.gateway';
@@ -135,15 +135,14 @@ export class GameProcessor extends WorkerHost {
       throw new NotFoundException('Game not found');
     }
 
-    await this.redis.hset(`game:${data.pin}`, {
-      status: GameStatus.REVIEWING,
-    });
-
     const correctAnswerId = game.questions[
       game.currentQuestionIndex
     ].options.find((option) => option.isCorrect)?.id;
 
-    await this.redis.hdel(`game:${data.pin}`, 'currentQuestionStartedAt');
+    const reviewPipeline = this.redis.pipeline();
+    reviewPipeline.hset(`game:${data.pin}`, { status: GameStatus.REVIEWING });
+    reviewPipeline.hdel(`game:${data.pin}`, 'currentQuestionStartedAt');
+    await reviewPipeline.exec();
 
     const currentQuestionScores =
       await this.gameService.getCurrentQuestionScores(data.pin);
