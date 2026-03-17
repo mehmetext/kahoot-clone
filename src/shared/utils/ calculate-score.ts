@@ -12,5 +12,7 @@ export function calculateScore(
   const maxScore = 1000;
   const minScore = 500;
 
-  return Math.round(maxScore - ratio * (maxScore - minScore));
+  return Math.round(
+    Math.max(minScore, maxScore - ratio * (maxScore - minScore)),
+  );
 }
