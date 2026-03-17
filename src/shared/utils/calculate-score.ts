@@ -6,6 +6,10 @@ export function calculateScore(
 ): number {
   if (!isCorrect) return 0;
 
+  if (timeLimit <= 0) {
+    return 0;
+  }
+
   const elapsed = (answeredAt - questionStartedAt) / 1000;
   const ratio = elapsed / timeLimit;
 
@@ -13,6 +17,9 @@ export function calculateScore(
   const minScore = 500;
 
   return Math.round(
-    Math.max(minScore, maxScore - ratio * (maxScore - minScore)),
+    Math.min(
+      maxScore,
+      Math.max(minScore, maxScore - ratio * (maxScore - minScore)),
+    ),
   );
 }

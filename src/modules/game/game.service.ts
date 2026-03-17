@@ -364,7 +364,7 @@ export class GameService {
     id: string,
     userId: string,
   ): Promise<FinishedGameResponseDto | null> {
-    const finishedGame = await this.prisma.game.findUnique({
+    const finishedGame = await this.prisma.game.findFirst({
       where: { id, hostId: userId },
     });
 

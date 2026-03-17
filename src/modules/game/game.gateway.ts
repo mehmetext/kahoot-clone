@@ -102,6 +102,7 @@ export class GameGateway implements OnGatewayConnection {
   @SubscribeMessage('host:start-game')
   async handleHostStartGame(
     @MessageBody() payload: { pin: string },
+    @ConnectedSocket() client: Socket,
     @WsUser() user: UserResponseDto,
   ) {
     if (!payload || !payload.pin) {
@@ -121,6 +122,11 @@ export class GameGateway implements OnGatewayConnection {
     if (game.status !== GameStatus.WAITING) {
       return { success: false, message: 'Game is not waiting' };
     }
+
+    await client.join(`game:${payload.pin}`);
+    await this.redis.hset(`game:${payload.pin}:sockets`, {
+      [client.id]: user.id,
+    });
 
     await this.gameQueue.remove(`clear-game-${payload.pin}`);
 
@@ -202,6 +208,12 @@ export class GameGateway implements OnGatewayConnection {
         payload.playerId,
       );
       if (existingNickname) {
+        if (existingNickname !== payload.nickname) {
+          return {
+            success: false,
+            message: 'Nickname does not match this playerId',
+          };
+        }
         playerId = payload.playerId;
         isReconnecting = true;
       }

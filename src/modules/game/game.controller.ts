@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -77,10 +78,16 @@ export class GameController {
   @ApiOkResponseGeneric(GameResponseDto)
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  async getGame(@Param('pin') pin: string): Promise<GameResponseDto> {
+  async getGame(
+    @Param('pin') pin: string,
+    @CurrentUser() user: UserResponseDto,
+  ): Promise<GameResponseDto> {
     const game = await this.gameService.getGame(pin);
     if (!game) {
       throw new NotFoundException('Game not found');
+    }
+    if (game.hostId !== user.id) {
+      throw new ForbiddenException('You are not the host of this game');
     }
     return game;
   }
