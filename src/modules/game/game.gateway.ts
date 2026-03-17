@@ -398,6 +398,23 @@ export class GameGateway implements OnGatewayConnection {
     );
     await redisPipeline.exec();
 
+    const answeredCount = await this.redis.hlen(
+      `game:${payload.pin}:answered:${game.currentQuestionIndex}`,
+    );
+    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+
+    if (answeredCount === playerCount) {
+      await this.gameQueue.remove(`end-question-${payload.pin}`);
+      await this.gameQueue.add(
+        'end-question',
+        { pin: payload.pin },
+        {
+          jobId: `end-question-${payload.pin}`,
+          removeOnComplete: true,
+        },
+      );
+    }
+
     return { success: true, message: 'The answer is received' };
   }
 }
