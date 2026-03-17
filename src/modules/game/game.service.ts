@@ -285,6 +285,12 @@ export class GameService {
   }
 
   async endGame(pin: string): Promise<void> {
+    const game = await this.getGame(pin);
+
+    if (!game) {
+      return;
+    }
+
     await this.redis.hset(`game:${pin}`, { status: GameStatus.ENDED });
 
     // Stop any scheduled game progression/cleanup jobs for this pin.
@@ -298,6 +304,19 @@ export class GameService {
 
     this.gameGateway.server.to(`game:${pin}`).emit('game:ended', {
       leaderboard,
+    });
+
+    await this.prisma.game.create({
+      data: {
+        pin,
+        hostId: game.hostId,
+        quizId: game.quizId,
+        leaderboard: leaderboard.map((item) => ({
+          playerId: item.playerId,
+          score: item.score,
+          nickname: item.nickname,
+        })),
+      },
     });
   }
 }
