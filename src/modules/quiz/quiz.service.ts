@@ -13,7 +13,7 @@ export class QuizService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createQuiz(createQuizDto: CreateQuizDto, userId: string) {
-    const quiz = this.prisma.quiz.create({
+    const quiz = await this.prisma.quiz.create({
       data: {
         name: createQuizDto.name,
         userId,
