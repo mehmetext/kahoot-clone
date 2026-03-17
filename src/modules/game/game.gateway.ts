@@ -65,6 +65,41 @@ export class GameGateway implements OnGatewayConnection {
   }
 
   @UseGuards(WsGuard)
+  @SubscribeMessage('host:join-game')
+  async handleHostJoinGame(
+    @MessageBody() payload: { pin: string },
+    @ConnectedSocket() client: Socket,
+    @WsUser() user: UserResponseDto,
+  ) {
+    if (!payload?.pin) {
+      return { success: false, message: 'Pin is required' };
+    }
+
+    const game = await this.gameService.getGame(payload.pin);
+
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    if (game.hostId !== user.id) {
+      return { success: false, message: 'You are not the host of this game' };
+    }
+
+    await client.join(`game:${payload.pin}`);
+
+    await this.redis.hset(`game:${payload.pin}:sockets`, {
+      [client.id]: user.id,
+    });
+
+    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+
+    return {
+      success: true,
+      data: { playerCount, status: game.status },
+    };
+  }
+
+  @UseGuards(WsGuard)
   @SubscribeMessage('host:start-game')
   async handleHostStartGame(
     @MessageBody() payload: { pin: string },
