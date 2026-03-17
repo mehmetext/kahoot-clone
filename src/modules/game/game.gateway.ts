@@ -123,13 +123,13 @@ export class GameGateway {
 
     this.server.to(`game:${payload.pin}`).emit('player:joined', {
       nickname: payload.nickname,
-      playerCount: playerCount + 1,
+      playerCount: existingPlayerId ? playerCount : playerCount + 1,
     });
 
     return {
       success: true,
       data: {
-        playerCount: playerCount + 1,
+        playerCount: existingPlayerId ? playerCount : playerCount + 1,
       },
     };
   }
