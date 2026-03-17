@@ -1,6 +1,5 @@
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import { InjectQueue } from '@nestjs/bullmq';
-import { randomUUID } from 'crypto';
 import {
   forwardRef,
   Inject,
@@ -17,12 +16,13 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Queue } from 'bullmq';
+import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { WsUser } from 'src/shared/decorators/ws-user.decorator';
 import { WsExceptionFilter } from 'src/shared/filters/ws-exception.filter';
 import { WsGuard } from 'src/shared/guards/ws.guard';
-import { calculateScore } from 'src/shared/utils/ calculate-score';
+import { calculateScore } from 'src/shared/utils/calculate-score';
 import { UserResponseDto } from '../auth/dtos/user-response.dto';
 import { GameStatus } from './enums/game-status.enum';
 import {
