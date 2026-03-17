@@ -65,6 +65,7 @@ export class GameGateway {
     return { success: true, message: 'Game started' };
   }
 
+  @SubscribeMessage('host:end-game')
   async handleHostEndGame(@MessageBody() payload: { pin: string }) {
     const game = await this.gameService.getGame(payload.pin);
 
