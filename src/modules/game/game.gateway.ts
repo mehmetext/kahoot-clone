@@ -84,22 +84,22 @@ export class GameGateway {
       return { success: false, message: 'Game not found' };
     }
 
-    if (game.status !== GameStatus.WAITING) {
-      return { success: false, message: 'Game is not waiting' };
-    }
-
-    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
-
-    if (playerCount > 99) {
-      return { success: false, message: 'The game is full' };
-    }
-
     const existingPlayerId = await this.redis.hget(
       `game:${payload.pin}:players`,
       payload.playerId,
     );
 
+    const playerCount = await this.redis.hlen(`game:${payload.pin}:players`);
+
     if (!existingPlayerId) {
+      if (game.status !== GameStatus.WAITING) {
+        return { success: false, message: 'Game is not waiting' };
+      }
+
+      if (playerCount > 99) {
+        return { success: false, message: 'The game is full' };
+      }
+
       const existingNickname = await this.redis.sismember(
         `game:${payload.pin}:nicknames`,
         payload.nickname,
