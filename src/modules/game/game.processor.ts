@@ -12,7 +12,10 @@ import { ClearGamePayload } from './dtos/clear-game.payload';
 import { NextQuestionPayload } from './dtos/next-question.payload';
 import { QuestionStartPayload } from './dtos/question:start.payload';
 import { GameStatus } from './enums/game-status.enum';
-import { QUESTION_END_TIME_LIMIT_IN_SECONDS } from './game.constants';
+import {
+  GAME_COUNTDOWN_SECONDS,
+  QUESTION_END_TIME_LIMIT_IN_SECONDS,
+} from './game.constants';
 import { GameGateway } from './game.gateway';
 import { GameService } from './game.service';
 
@@ -82,6 +85,8 @@ export class GameProcessor extends WorkerHost {
       status: GameStatus.ACTIVE,
     });
 
+    await this.redis.del(`game:${data.pin}:current-question-scores`);
+
     const timeLimitInSeconds =
       game.questions[game.currentQuestionIndex].timeLimitInSeconds ??
       QUESTION_END_TIME_LIMIT_IN_SECONDS;
@@ -139,6 +144,21 @@ export class GameProcessor extends WorkerHost {
       currentQuestionScores,
       top5,
     });
+
+    const isLastQuestion =
+      game.currentQuestionIndex + 1 === game.questions.length;
+
+    if (isLastQuestion) {
+      await this.gameQueue.add(
+        'end-game',
+        { pin: data.pin },
+        {
+          delay: GAME_COUNTDOWN_SECONDS * 1000,
+          jobId: `end-game-${data.pin}`,
+          removeOnComplete: true,
+        },
+      );
+    }
   }
 
   @OnWorkerEvent('active')
